@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://dk4x0ljcy3eud"]
 
 [ext_resource type="Script" uid="uid://dd8vta5e4evmo" path="res://scripts/player.gd" id="1_4flbx"]
+[ext_resource type="ArrayMesh" uid="uid://decnq2ui5r40w" path="res://assets/objects/human.obj" id="2_g2els"]
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_sh265"]
 properties/0/path = NodePath(".:position")
@@ -15,15 +16,15 @@ properties/2/replication_mode = 1
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_4flbx"]
 
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_onrkg"]
-
 [node name="Player" type="CharacterBody3D" unique_id=1851431735]
 script = ExtResource("1_4flbx")
 
 [node name="Head" type="Node3D" parent="." unique_id=26157597]
 
 [node name="Camera3D" type="Camera3D" parent="Head" unique_id=1713301794]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0019653141, 1.2456539, -0.088942826)
 current = true
+fov = 51.722557
 
 [node name="RayCast3D" type="RayCast3D" parent="Head" unique_id=200838460]
 
@@ -38,5 +39,5 @@ offset_right = 40.0
 offset_bottom = 23.0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=494969114]
-transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
-mesh = SubResource("CapsuleMesh_onrkg")
+transform = Transform3D(-0.3, 0, -2.6226834e-08, 0, 0.3, 0, 2.6226834e-08, 0, -0.3, 0, 0, 0)
+mesh = ExtResource("2_g2els")
