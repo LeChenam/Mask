@@ -1,12 +1,33 @@
 [gd_scene format=3 uid="uid://dihttupaud4ml"]
 
+[ext_resource type="Script" path="res://scripts/Game/card.gd" id="card_script"]
+
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_nxf5b"]
 
+[sub_resource type="BoxMesh" id="BoxMesh_face"]
+size = Vector3(0.15, 0.22, 0.002)
+
+[sub_resource type="BoxMesh" id="BoxMesh_dos"]
+size = Vector3(0.15, 0.22, 0.002)
+
+[sub_resource type="StandardMaterial3D" id="Material_face"]
+albedo_color = Color(1, 1, 1, 1)
+
+[sub_resource type="StandardMaterial3D" id="Material_dos"]
+albedo_color = Color(0.2, 0.2, 0.6, 1)
+
 [node name="Card" type="Area3D" unique_id=1179918831]
+script = ExtResource("card_script")
 
 [node name="MeshFace" type="MeshInstance3D" parent="." unique_id=86999491]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.002)
+mesh = SubResource("BoxMesh_face")
+surface_material_override/0 = SubResource("Material_face")
 
 [node name="MeshDos" type="MeshInstance3D" parent="." unique_id=1406519307]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.002)
+mesh = SubResource("BoxMesh_dos")
+surface_material_override/0 = SubResource("Material_dos")
 
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=1843628164]
 replication_config = SubResource("SceneReplicationConfig_nxf5b")

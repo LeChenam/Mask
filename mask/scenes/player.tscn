@@ -83,9 +83,13 @@ horizontal_alignment = 1
 layout_mode = 2
 alignment = 1
 
-[node name="BetInput" type="LineEdit" parent="UI/ActionButtons/HBoxContainer" unique_id=2056208808]
+[node name="BetInput" type="SpinBox" parent="UI/ActionButtons/HBoxContainer" unique_id=2056208808]
 layout_mode = 2
-placeholder_text = "$"
+min_value = 0.0
+max_value = 10000.0
+step = 10.0
+value = 0.0
+suffix = "$"
 
 [node name="Btn_Miser" type="Button" parent="UI/ActionButtons/HBoxContainer" unique_id=395080126]
 layout_mode = 2

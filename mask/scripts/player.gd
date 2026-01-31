@@ -92,38 +92,53 @@ func _unhandled_input(event):
 
 @rpc("authority", "call_local", "reliable")
 func notify_turn(is_my_turn: bool, amount_to_call: int = 0):
+	print("PLAYER RPC : notify_turn reçu - is_local_player=", is_local_player, " is_my_turn=", is_my_turn)
 	if not is_local_player: return
+	if not is_instance_valid(action_ui): return
 
 	action_ui.visible = is_my_turn
 	current_to_call = amount_to_call
 	
 	if is_my_turn:
-		info_label.text = "À VOUS DE JOUER !"
+		if is_instance_valid(info_label):
+			info_label.text = "À VOUS DE JOUER !"
 		
 		if amount_to_call > 0:
-			call_label.text = "Mise à suivre : " + str(amount_to_call) + "$"
-			bet_input.value = amount_to_call
-			bet_input.min_value = amount_to_call
+			if is_instance_valid(call_label):
+				call_label.text = "Mise à suivre : " + str(amount_to_call) + "$"
+			if is_instance_valid(bet_input):
+				bet_input.value = amount_to_call
+				bet_input.min_value = amount_to_call
 		else:
-			call_label.text = "Parole (Check)"
-			bet_input.value = 0
-			bet_input.min_value = 0
+			if is_instance_valid(call_label):
+				call_label.text = "Parole (Check)"
+			if is_instance_valid(bet_input):
+				bet_input.value = 0
+				bet_input.min_value = 0
 	else:
-		info_label.text = "Le voisin réfléchit..."
+		if is_instance_valid(info_label):
+			info_label.text = "Le voisin réfléchit..."
 
 @rpc("authority", "call_local", "reliable")
 func update_stack(new_amount: int):
-	if is_local_player:
-		my_stack = new_amount
+	print("PLAYER RPC : update_stack reçu - is_local_player=", is_local_player, " amount=", new_amount)
+	if not is_local_player: return
+	
+	my_stack = new_amount
+	if is_instance_valid(stack_label):
 		stack_label.text = "Argent : " + str(my_stack) + "$"
+	if is_instance_valid(bet_input):
 		bet_input.max_value = my_stack
 
 @rpc("authority", "call_local", "reliable")
 func update_pot(amount: int):
-	if is_local_player:
+	print("PLAYER RPC : update_pot reçu - is_local_player=", is_local_player, " pot=", amount)
+	if not is_local_player: return
+	
+	if is_instance_valid(pot_label):
 		pot_label.text = "POT : " + str(amount) + "$"
 
-@rpc("authority", "call_remote", "reliable")
+@rpc("authority", "call_local", "reliable")
 func receive_cards(cards: Array):
 	print("Cartes reçues : ", cards)
 	
