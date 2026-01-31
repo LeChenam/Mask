@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://dnuqhjie2j5wk"]
+[gd_scene format=3 uid="uid://dfks8dg36n5iy"]
 
 [ext_resource type="Script" uid="uid://dcg0aprrlldl0" path="res://scripts/world.gd" id="1_f3sb7"]
 [ext_resource type="ArrayMesh" uid="uid://ck1apr6cko8va" path="res://assets/objects/table.obj" id="2_fj7yv"]
@@ -7,8 +7,6 @@
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_aqk2v"]
 size = Vector3(19.423279, 1, 19.364624)
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_f3sb7"]
 
 [node name="World" type="Node3D" unique_id=584979016]
 script = ExtResource("1_f3sb7")
@@ -33,14 +31,6 @@ debug_color = Color(0.7535472, 0.06253936, 3.85046e-07, 1)
 transform = Transform3D(0.19995144, 0, 0.0044048545, 0, 0.2, 0, -0.0044048545, 0, 0.19995144, 0.05523325, 0.32046324, -0.03398188)
 mesh = ExtResource("2_fj7yv")
 
-[node name="MeshInstance3D2" type="MeshInstance3D" parent="LevelGeometry" unique_id=1972412224]
-transform = Transform3D(4.25, 0, 0, 0, 4.25, 0, 0, 0, 4.25, 5.546128, 0.6445712, -7.5804963)
-mesh = SubResource("CylinderMesh_f3sb7")
-
-[node name="MeshInstance3D3" type="MeshInstance3D" parent="LevelGeometry" unique_id=1889420117]
-transform = Transform3D(4.25, 0, 0, 0, 4.25, 0, 0, 0, 4.25, 16.85695, 0.6445712, 10.763571)
-mesh = SubResource("CylinderMesh_f3sb7")
-
 [node name="Dealer" type="Node3D" parent="." unique_id=1347483840]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.8530696, 0.8, 0)
 
@@ -64,7 +54,7 @@ transform = Transform3D(0.41273877, 0, -0.91084945, 0, 1, 0, 0.91084945, 0, 0.41
 [node name="CardContainer" type="Node3D" parent="." unique_id=1925936243]
 
 [node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="." unique_id=852467706]
-_spawnable_scenes = PackedStringArray("uid://bxs7aak1prc1q")
+_spawnable_scenes = PackedStringArray("uid://dk4x0ljcy3eud")
 spawn_path = NodePath("../PlayerContainer")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=868651673]

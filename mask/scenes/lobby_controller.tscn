@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://c2bnbht05wrfu"]
+[gd_scene format=3 uid="uid://42i2yke3copo"]
 
 [ext_resource type="Script" uid="uid://bkxomrpjm8bru" path="res://addons/lan_multiplayer/scripts/lobby_controller.gd" id="1_7uolb"]
 
@@ -159,7 +159,7 @@ _data = {
 &"invalid": SubResource("Animation_6kecv")
 }
 
-[node name="lobby_controller" type="Control"]
+[node name="lobby_controller" type="Control" unique_id=1773654050]
 layout_mode = 3
 anchors_preset = 8
 anchor_left = 0.5
@@ -170,7 +170,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_7uolb")
 
-[node name="Panel" type="Panel" parent="."]
+[node name="Panel" type="Panel" parent="." unique_id=780184174]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -185,7 +185,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme = SubResource("Theme_nu6n8")
 
-[node name="main" type="Control" parent="."]
+[node name="main" type="Control" parent="." unique_id=274989010]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -195,7 +195,7 @@ anchor_bottom = 0.5
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Panel" type="Panel" parent="main"]
+[node name="Panel" type="Panel" parent="main" unique_id=22381845]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -211,7 +211,7 @@ grow_vertical = 2
 mouse_filter = 1
 theme_override_styles/panel = SubResource("StyleBoxFlat_ediwl")
 
-[node name="searching_text" type="Label" parent="main"]
+[node name="searching_text" type="Label" parent="main" unique_id=216044579]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -230,13 +230,11 @@ text = "SEARCHING FOR GAMES..."
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="main/searching_text"]
-libraries = {
-&"": SubResource("AnimationLibrary_7qa8r")
-}
-autoplay = "load"
+[node name="AnimationPlayer" type="AnimationPlayer" parent="main/searching_text" unique_id=338134846]
+libraries/ = SubResource("AnimationLibrary_7qa8r")
+autoplay = &"load"
 
-[node name="ScrollContainer" type="ScrollContainer" parent="main"]
+[node name="ScrollContainer" type="ScrollContainer" parent="main" unique_id=1214032084]
 custom_minimum_size = Vector2(440, 185)
 layout_mode = 1
 anchors_preset = 8
@@ -251,11 +249,11 @@ offset_bottom = 65.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="list" type="VBoxContainer" parent="main/ScrollContainer"]
+[node name="list" type="VBoxContainer" parent="main/ScrollContainer" unique_id=834382487]
 layout_mode = 2
 theme_override_constants/separation = -1
 
-[node name="host_button" type="Button" parent="main"]
+[node name="host_button" type="Button" parent="main" unique_id=447941005]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -270,7 +268,7 @@ grow_horizontal = 2
 grow_vertical = 2
 text = "HOST"
 
-[node name="room" type="Control" parent="."]
+[node name="room" type="Control" parent="." unique_id=293329218]
 visible = false
 layout_mode = 1
 anchors_preset = 8
@@ -286,7 +284,7 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 1
 
-[node name="Panel" type="Panel" parent="room"]
+[node name="Panel" type="Panel" parent="room" unique_id=1545634931]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -302,7 +300,7 @@ grow_vertical = 2
 mouse_filter = 1
 theme_override_styles/panel = SubResource("StyleBoxFlat_ediwl")
 
-[node name="room" type="VBoxContainer" parent="room"]
+[node name="room" type="VBoxContainer" parent="room" unique_id=1454153969]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -317,7 +315,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = -1
 
-[node name="host" type="Control" parent="."]
+[node name="host" type="Control" parent="." unique_id=459493162]
 visible = false
 layout_mode = 1
 anchors_preset = 8
@@ -328,7 +326,7 @@ anchor_bottom = 0.5
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="start_button" type="Button" parent="host"]
+[node name="start_button" type="Button" parent="host" unique_id=1289759214]
 visible = false
 layout_mode = 1
 anchors_preset = 8
@@ -344,7 +342,7 @@ grow_horizontal = 2
 grow_vertical = 2
 text = "START"
 
-[node name="settings_button" type="Button" parent="host"]
+[node name="settings_button" type="Button" parent="host" unique_id=1941953074]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -359,7 +357,7 @@ grow_horizontal = 2
 grow_vertical = 2
 text = "SETTINGS"
 
-[node name="back_button" type="Button" parent="host"]
+[node name="back_button" type="Button" parent="host" unique_id=364731540]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -374,7 +372,7 @@ grow_horizontal = 2
 grow_vertical = 2
 text = "BACK"
 
-[node name="join" type="Control" parent="."]
+[node name="join" type="Control" parent="." unique_id=1326973156]
 visible = false
 layout_mode = 1
 anchors_preset = 8
@@ -385,7 +383,7 @@ anchor_bottom = 0.5
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="back_button" type="Button" parent="join"]
+[node name="back_button" type="Button" parent="join" unique_id=970045030]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -400,7 +398,7 @@ grow_horizontal = 2
 grow_vertical = 2
 text = "BACK"
 
-[node name="settings" type="Control" parent="."]
+[node name="settings" type="Control" parent="." unique_id=769584838]
 visible = false
 layout_mode = 1
 anchors_preset = 8
@@ -411,7 +409,7 @@ anchor_bottom = 0.5
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="game_name" type="LineEdit" parent="settings"]
+[node name="game_name" type="LineEdit" parent="settings" unique_id=1344088659]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -429,7 +427,7 @@ placeholder_text = "Insert game name"
 alignment = 1
 caret_blink = true
 
-[node name="max_players" type="SpinBox" parent="settings"]
+[node name="max_players" type="SpinBox" parent="settings" unique_id=1107122154]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -448,7 +446,7 @@ value = 6.0
 alignment = 1
 prefix = "Max Players:"
 
-[node name="time" type="SpinBox" parent="settings"]
+[node name="time" type="SpinBox" parent="settings" unique_id=1105393911]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -468,7 +466,7 @@ alignment = 1
 prefix = "Time:"
 suffix = "minutes"
 
-[node name="back_button" type="Button" parent="settings"]
+[node name="back_button" type="Button" parent="settings" unique_id=1456398638]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -483,7 +481,7 @@ grow_horizontal = 2
 grow_vertical = 2
 text = "BACK"
 
-[node name="error_text" type="Label" parent="."]
+[node name="error_text" type="Label" parent="." unique_id=471861772]
 modulate = Color(1, 1, 1, 0)
 layout_mode = 1
 anchors_preset = 8
@@ -505,12 +503,10 @@ text = "*Error: ..."
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="error_text"]
-libraries = {
-&"": SubResource("AnimationLibrary_gw1d3")
-}
+[node name="AnimationPlayer" type="AnimationPlayer" parent="error_text" unique_id=692930485]
+libraries/ = SubResource("AnimationLibrary_gw1d3")
 
-[node name="Timer" type="Timer" parent="."]
+[node name="Timer" type="Timer" parent="." unique_id=956611413]
 autostart = true
 
 [connection signal="pressed" from="main/host_button" to="." method="_on_host_button_pressed"]
