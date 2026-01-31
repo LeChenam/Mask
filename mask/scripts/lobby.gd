@@ -129,10 +129,10 @@ func _on_connected_fail():
 
 func _on_server_lost():
 	print("RÉSEAU : Connexion perdue.")
-	get_tree().change_scene_to_file("res://lobby.tscn")
+	get_tree().change_scene_to_file("res://scenes/lobby.tscn")
 
 func _load_world():
 	# On ferme l'UDP seulement si on est CLIENT (le serveur continue à broadcaster)
 	if not multiplayer.is_server():
 		udp.close()
-	get_tree().change_scene_to_file("res://world.tscn")
+	get_tree().change_scene_to_file("res://scenes/world.tscn")
