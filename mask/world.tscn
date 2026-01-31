@@ -1,43 +1,55 @@
 [gd_scene format=3 uid="uid://dnuqhjie2j5wk"]
 
 [ext_resource type="Script" uid="uid://dcg0aprrlldl0" path="res://scripts/world.gd" id="1_f3sb7"]
+[ext_resource type="ArrayMesh" uid="uid://ck1apr6cko8va" path="res://assets/objects/table.obj" id="2_fj7yv"]
 
-[sub_resource type="PlaneMesh" id="PlaneMesh_f3sb7"]
+[sub_resource type="PlaneMesh" id="PlaneMesh_tlwt5"]
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_f3sb7"]
-size = Vector3(20.852892, 0.9979038, 20.453094)
+[sub_resource type="BoxShape3D" id="BoxShape3D_aqk2v"]
+size = Vector3(19.423279, 1, 19.364624)
 
 [node name="World" type="Node3D" unique_id=584979016]
 script = ExtResource("1_f3sb7")
 
 [node name="LevelGeometry" type="Node3D" parent="." unique_id=1135009950]
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="LevelGeometry" unique_id=1477941928]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0664646, -0.014107943, 0.101745844)
-mesh = SubResource("PlaneMesh_f3sb7")
-
 [node name="WorldEnvironment" type="WorldEnvironment" parent="LevelGeometry" unique_id=763815000]
 
 [node name="StaticBody3D" type="StaticBody3D" parent="LevelGeometry" unique_id=1098773581]
 transform = Transform3D(0.99975747, 0, -0.022024274, 0, 1, 0, 0.022024274, 0, 0.99975747, 0, 0.37953675, 0.068846524)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="LevelGeometry/StaticBody3D" unique_id=1694887328]
-transform = Transform3D(0.99998534, 0, 1.2293458e-07, 0, 1, 0, -1.2293458e-07, 0, 0.99998534, -2.2805464, -1.4732733, 0.46053267)
-shape = SubResource("BoxShape3D_f3sb7")
+[node name="MeshSol" type="MeshInstance3D" parent="LevelGeometry/StaticBody3D" unique_id=169196650]
+transform = Transform3D(5, 0, 0, 0, 5, 0, 0, 0, 5, -0.0019999999, -0.35, 0)
+mesh = SubResource("PlaneMesh_tlwt5")
+
+[node name="Sol" type="CollisionShape3D" parent="LevelGeometry/StaticBody3D" unique_id=899131145]
+transform = Transform3D(0.5, 0, 1.8254728e-07, 0, 0.5, 0, -1.8254728e-07, 0, 0.5, 0, -0.9, 0)
+shape = SubResource("BoxShape3D_aqk2v")
+debug_color = Color(0.7535472, 0.06253936, 3.85046e-07, 1)
+
+[node name="Table" type="MeshInstance3D" parent="LevelGeometry/StaticBody3D" unique_id=1402486741]
+transform = Transform3D(0.19995144, 0, 0.0044048545, 0, 0.2, 0, -0.0044048545, 0, 0.19995144, 0.05523325, 0.32046324, -0.03398188)
+mesh = ExtResource("2_fj7yv")
 
 [node name="Dealer" type="Node3D" parent="." unique_id=1347483840]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.8530696, 0.8, 0)
 
 [node name="SpawnPoint" type="Node3D" parent="." unique_id=329985917]
 
-[node name="Marker3D" type="Marker3D" parent="SpawnPoint" unique_id=1009201828]
+[node name="Player1" type="Marker3D" parent="SpawnPoint" unique_id=1009201828]
+transform = Transform3D(1.0000001, 0, 0, 0, 1, 0, 0, 0, 1.0000001, 1.1891987, 0.8, -0.00089657307)
 
-[node name="Marker3D2" type="Marker3D" parent="SpawnPoint" unique_id=1556737425]
+[node name="Player2" type="Marker3D" parent="SpawnPoint" unique_id=1556737425]
+transform = Transform3D(0.94615877, 0, 0.32370275, 0, 1, 0, -0.32370275, 0, 0.94615877, 1.094, 0.8, -1.052)
 
-[node name="Marker3D3" type="Marker3D" parent="SpawnPoint" unique_id=98137635]
+[node name="Player3" type="Marker3D" parent="SpawnPoint" unique_id=98137635]
+transform = Transform3D(0.92821336, 0, -0.37204838, 0, 1, 0, 0.37204838, 0, 0.92821336, 1.0268096, 0.8, 1.0505843)
 
-[node name="Marker3D4" type="Marker3D" parent="SpawnPoint" unique_id=1076175584]
+[node name="Player4" type="Marker3D" parent="SpawnPoint" unique_id=1076175584]
+transform = Transform3D(0.5085155, 0, 0.8610528, 0, 1, 0, -0.8610528, 0, 0.5085155, 0.36381245, 0.8, -1.7462993)
 
-[node name="Marker3D5" type="Marker3D" parent="SpawnPoint" unique_id=1282564919]
+[node name="Player5" type="Marker3D" parent="SpawnPoint" unique_id=1282564919]
+transform = Transform3D(0.41273877, 0, -0.91084945, 0, 1, 0, 0.91084945, 0, 0.41273877, 0.32223415, 0.8, 1.8190619)
 
 [node name="CardContainer" type="Node3D" parent="." unique_id=1925936243]
 
@@ -81,4 +93,4 @@ offset_bottom = 136.0
 [node name="PlayerContainer" type="Node3D" parent="." unique_id=172900509]
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=2128364230]
-transform = Transform3D(0.9870832, 0, 0.16020852, 0, 1, 0, -0.16020852, 0, 0.9870832, -0.96711016, 2.646225, 6.060768)
+transform = Transform3D(0.99919933, 0.036071002, -0.017309569, -0.018328482, 0.797255, 0.60336435, 0.0355641, -0.60256404, 0.79727775, -0.96711016, 10.976715, 14.712596)
