@@ -2,8 +2,22 @@ extends Control
 
 const GAME_PORT = 42069
 const BROADCAST_PORT = 8989
-const BROADCAST_ADDRESS = "255.255.255.255"
+#const BROADCAST_ADDRESS = "255.255.255.255"
 const MAGIC_WORD = "MASKARD_SERVER"
+
+var current_broadcast_ip = "255.255.255.255" # Valeur par défaut
+
+# --- Fonction utilitaire pour trouver l'adresse .255 locale ---
+func _get_local_broadcast_ip() -> String:
+	var addresses = IP.get_local_addresses()
+	for ip in addresses:
+		# On cherche une IP locale classique (type 192.168.x.x ou 10.x.x.x)
+		if ip.begins_with("192.168.") or ip.begins_with("10."):
+			var parts = ip.split(".")
+			# On remplace le dernier chiffre par 255
+			parts[3] = "255" 
+			return ".".join(parts)
+	return "255.255.255.255" # Fallback si on ne trouve rien
 
 @onready var ip_input = $VBoxContainer/IPInput 
 
@@ -20,6 +34,9 @@ func _ready() -> void:
 	# 2. Préparation UDP (Bind pour écouter)
 	udp.set_broadcast_enabled(true)
 	var err = udp.bind(BROADCAST_PORT)
+	
+	current_broadcast_ip = _get_local_broadcast_ip()
+	print("LOBBY : Adresse de broadcast calculée -> ", current_broadcast_ip)
 	
 	if err == OK:
 		print("LOBBY : Écoute du réseau sur le port ", BROADCAST_PORT)
@@ -72,7 +89,7 @@ func _host_game():
 
 func _send_broadcast():
 	# Le serveur envoie le mot magique à tout le monde
-	udp.set_dest_address(BROADCAST_ADDRESS, BROADCAST_PORT)
+	udp.set_dest_address(current_broadcast_ip, BROADCAST_PORT)
 	udp.put_packet(MAGIC_WORD.to_utf8_buffer())
 
 # --- JOINING ---
