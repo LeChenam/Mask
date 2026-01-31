@@ -21,6 +21,9 @@ var broadcast_timer = Timer.new()
 var current_broadcast_ip = "255.255.255.255"
 
 func _ready():
+	if multiplayer.is_server():
+		multiplayer.peer_connected.connect(_on_player_connected)
+		_on_player_connected(1)
 	# Sécurité : Si pas de réseau, on ne fait rien (ou retour au menu)
 	if not multiplayer.has_multiplayer_peer(): return
 
