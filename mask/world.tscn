@@ -27,9 +27,13 @@ script = ExtResource("1_f3sb7")
 
 [node name="CardContainer" type="Node3D" parent="." unique_id=1925936243]
 
-[node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="." unique_id=852467706]
+[node name="PlayerMultiplayerSpawner" type="MultiplayerSpawner" parent="." unique_id=852467706]
 _spawnable_scenes = PackedStringArray("uid://bxs7aak1prc1q")
 spawn_path = NodePath("../PlayerContainer")
+
+[node name="CardMultiplayerSpawner2" type="MultiplayerSpawner" parent="." unique_id=1260234672]
+_spawnable_scenes = PackedStringArray("uid://c2dgxas7qt00")
+spawn_path = NodePath("../CardContainer")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=868651673]
 
@@ -65,6 +69,3 @@ offset_right = -147.00002
 offset_bottom = 136.0
 
 [node name="PlayerContainer" type="Node" parent="." unique_id=183348286]
-
-[node name="Camera3D" type="Camera3D" parent="." unique_id=1177677792]
-transform = Transform3D(0.98260957, 0.17824826, -0.052018747, -0.1726574, 0.98016953, 0.09724755, 0.06832141, -0.08657495, 0.9938999, -0.08839284, 1.1592804, 3.262509)
