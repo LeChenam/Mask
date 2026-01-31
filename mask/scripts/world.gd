@@ -50,7 +50,7 @@ func _on_player_disconnected(peer_id):
 		player_container.get_node(str(peer_id)).queue_free()
 
 func spawn_player(id):
-	var player_scene = preload("res://player.tscn")
+	var player_scene = preload("res://scenes/player.tscn")
 	var new_player = player_scene.instantiate()
 	
 	# CRUCIAL : Le nom du node DOIT être l'ID réseau

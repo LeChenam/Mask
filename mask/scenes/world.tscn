@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://dfks8dg36n5iy"]
+[gd_scene format=3 uid="uid://dnuqhjie2j5wk"]
 
 [ext_resource type="Script" uid="uid://dcg0aprrlldl0" path="res://scripts/world.gd" id="1_f3sb7"]
 
@@ -52,7 +52,7 @@ mesh = SubResource("CylinderMesh_f3sb7")
 [node name="CardContainer" type="Node3D" parent="." unique_id=1925936243]
 
 [node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="." unique_id=852467706]
-_spawnable_scenes = PackedStringArray("res://player.tscn")
+_spawnable_scenes = PackedStringArray("uid://bxs7aak1prc1q")
 spawn_path = NodePath("../PlayerContainer")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=868651673]

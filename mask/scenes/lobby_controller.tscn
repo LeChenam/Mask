@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://bdpt1my8tmxn7"]
+[gd_scene format=3 uid="uid://c2bnbht05wrfu"]
 
 [ext_resource type="Script" uid="uid://bkxomrpjm8bru" path="res://addons/lan_multiplayer/scripts/lobby_controller.gd" id="1_7uolb"]
 
@@ -159,7 +159,7 @@ _data = {
 &"invalid": SubResource("Animation_6kecv")
 }
 
-[node name="lobby_controller" type="Control" unique_id=622428286]
+[node name="lobby_controller" type="Control"]
 layout_mode = 3
 anchors_preset = 8
 anchor_left = 0.5
@@ -170,7 +170,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_7uolb")
 
-[node name="Panel" type="Panel" parent="." unique_id=368772762]
+[node name="Panel" type="Panel" parent="."]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -185,7 +185,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme = SubResource("Theme_nu6n8")
 
-[node name="main" type="Control" parent="." unique_id=765453113]
+[node name="main" type="Control" parent="."]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -195,7 +195,7 @@ anchor_bottom = 0.5
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Panel" type="Panel" parent="main" unique_id=80428236]
+[node name="Panel" type="Panel" parent="main"]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -211,7 +211,7 @@ grow_vertical = 2
 mouse_filter = 1
 theme_override_styles/panel = SubResource("StyleBoxFlat_ediwl")
 
-[node name="searching_text" type="Label" parent="main" unique_id=1917216576]
+[node name="searching_text" type="Label" parent="main"]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -230,11 +230,13 @@ text = "SEARCHING FOR GAMES..."
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="main/searching_text" unique_id=1089225332]
-libraries/ = SubResource("AnimationLibrary_7qa8r")
-autoplay = &"load"
+[node name="AnimationPlayer" type="AnimationPlayer" parent="main/searching_text"]
+libraries = {
+&"": SubResource("AnimationLibrary_7qa8r")
+}
+autoplay = "load"
 
-[node name="ScrollContainer" type="ScrollContainer" parent="main" unique_id=2078989770]
+[node name="ScrollContainer" type="ScrollContainer" parent="main"]
 custom_minimum_size = Vector2(440, 185)
 layout_mode = 1
 anchors_preset = 8
@@ -249,11 +251,11 @@ offset_bottom = 65.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="list" type="VBoxContainer" parent="main/ScrollContainer" unique_id=33656675]
+[node name="list" type="VBoxContainer" parent="main/ScrollContainer"]
 layout_mode = 2
 theme_override_constants/separation = -1
 
-[node name="host_button" type="Button" parent="main" unique_id=695834791]
+[node name="host_button" type="Button" parent="main"]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -268,7 +270,7 @@ grow_horizontal = 2
 grow_vertical = 2
 text = "HOST"
 
-[node name="room" type="Control" parent="." unique_id=1723048349]
+[node name="room" type="Control" parent="."]
 visible = false
 layout_mode = 1
 anchors_preset = 8
@@ -284,7 +286,7 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 1
 
-[node name="Panel" type="Panel" parent="room" unique_id=1498800528]
+[node name="Panel" type="Panel" parent="room"]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -300,7 +302,7 @@ grow_vertical = 2
 mouse_filter = 1
 theme_override_styles/panel = SubResource("StyleBoxFlat_ediwl")
 
-[node name="room" type="VBoxContainer" parent="room" unique_id=344435316]
+[node name="room" type="VBoxContainer" parent="room"]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -315,7 +317,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = -1
 
-[node name="host" type="Control" parent="." unique_id=2108175530]
+[node name="host" type="Control" parent="."]
 visible = false
 layout_mode = 1
 anchors_preset = 8
@@ -326,7 +328,7 @@ anchor_bottom = 0.5
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="start_button" type="Button" parent="host" unique_id=331468242]
+[node name="start_button" type="Button" parent="host"]
 visible = false
 layout_mode = 1
 anchors_preset = 8
@@ -342,7 +344,7 @@ grow_horizontal = 2
 grow_vertical = 2
 text = "START"
 
-[node name="settings_button" type="Button" parent="host" unique_id=488082992]
+[node name="settings_button" type="Button" parent="host"]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -357,7 +359,7 @@ grow_horizontal = 2
 grow_vertical = 2
 text = "SETTINGS"
 
-[node name="back_button" type="Button" parent="host" unique_id=244784282]
+[node name="back_button" type="Button" parent="host"]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -372,7 +374,7 @@ grow_horizontal = 2
 grow_vertical = 2
 text = "BACK"
 
-[node name="join" type="Control" parent="." unique_id=965829671]
+[node name="join" type="Control" parent="."]
 visible = false
 layout_mode = 1
 anchors_preset = 8
@@ -383,7 +385,7 @@ anchor_bottom = 0.5
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="back_button" type="Button" parent="join" unique_id=153061702]
+[node name="back_button" type="Button" parent="join"]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -398,7 +400,7 @@ grow_horizontal = 2
 grow_vertical = 2
 text = "BACK"
 
-[node name="settings" type="Control" parent="." unique_id=664986193]
+[node name="settings" type="Control" parent="."]
 visible = false
 layout_mode = 1
 anchors_preset = 8
@@ -409,7 +411,7 @@ anchor_bottom = 0.5
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="game_name" type="LineEdit" parent="settings" unique_id=1601376858]
+[node name="game_name" type="LineEdit" parent="settings"]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -427,7 +429,7 @@ placeholder_text = "Insert game name"
 alignment = 1
 caret_blink = true
 
-[node name="max_players" type="SpinBox" parent="settings" unique_id=1050738183]
+[node name="max_players" type="SpinBox" parent="settings"]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -446,7 +448,7 @@ value = 6.0
 alignment = 1
 prefix = "Max Players:"
 
-[node name="time" type="SpinBox" parent="settings" unique_id=291171782]
+[node name="time" type="SpinBox" parent="settings"]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -466,7 +468,7 @@ alignment = 1
 prefix = "Time:"
 suffix = "minutes"
 
-[node name="back_button" type="Button" parent="settings" unique_id=544994697]
+[node name="back_button" type="Button" parent="settings"]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -481,7 +483,7 @@ grow_horizontal = 2
 grow_vertical = 2
 text = "BACK"
 
-[node name="error_text" type="Label" parent="." unique_id=1538420016]
+[node name="error_text" type="Label" parent="."]
 modulate = Color(1, 1, 1, 0)
 layout_mode = 1
 anchors_preset = 8
@@ -503,10 +505,12 @@ text = "*Error: ..."
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="error_text" unique_id=1144055199]
-libraries/ = SubResource("AnimationLibrary_gw1d3")
+[node name="AnimationPlayer" type="AnimationPlayer" parent="error_text"]
+libraries = {
+&"": SubResource("AnimationLibrary_gw1d3")
+}
 
-[node name="Timer" type="Timer" parent="." unique_id=1634415574]
+[node name="Timer" type="Timer" parent="."]
 autostart = true
 
 [connection signal="pressed" from="main/host_button" to="." method="_on_host_button_pressed"]
