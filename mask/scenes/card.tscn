@@ -1,8 +1,6 @@
 [gd_scene format=3 uid="uid://dihttupaud4ml"]
 
-[ext_resource type="Script" uid="uid://ca7gt1trelfgf" path="res://card.gd" id="1_kikvd"]
-
-[ext_resource type="Script" uid="uid://ca7gt1trelfgf" path="res://card.gd" id="1_kikvd"]
+[ext_resource type="Script" path="res://card.gd" id="1_kikvd"]
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_nxf5b"]
 
