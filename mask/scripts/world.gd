@@ -1,11 +1,6 @@
 extends Node3D
 
-enum GamePhase { WAITING, PRE_FLOP, FLOP, TURN, RIVER, SHOWDOWN }
-var current_phase = GamePhase.WAITING
-var deck = []
-var turn_index = 0
-
-@onready var card_container = $CardContainer
+@onready var dealer = $Dealer
 extends Node3D # Important : Node3D, pas Node ou Control !
 
 # Référence au container des joueurs
@@ -173,5 +168,5 @@ func next_turn():
 	current_player_node.rpc("notify_turn", true)
 
 func _input(event):
-	if multiplayer.is_server() and event.is_action_pressed("ui_accept"): # Touche Espace
-		start_game()
+	if multiplayer.is_server() and event.is_action_pressed("ui_accept"):
+		dealer.start_game()
