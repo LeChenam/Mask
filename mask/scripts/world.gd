@@ -8,6 +8,7 @@ func _ready():
 		print("--- SERVEUR DÉMARRÉ (ID 1) ---")
 		spawn_player(1)
 
+
 func _on_player_connected(peer_id):
 	# Ce log n'apparaît QUE sur le serveur
 	print("--- RÉSEAU : Le joueur ", peer_id, " vient de se connecter ! ---")

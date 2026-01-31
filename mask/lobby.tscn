@@ -2,8 +2,6 @@
 
 [ext_resource type="Script" uid="uid://o2rafmbvlev6" path="res://scripts/lobby.gd" id="1_2wvic"]
 
-[sub_resource type="GDScript" id="GDScript_ll2xe"]
-
 [node name="Lobby" type="Control" unique_id=1314446420]
 layout_mode = 3
 anchors_preset = 15
@@ -13,38 +11,27 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_2wvic")
 
-[node name="Background" type="ColorRect" parent="." unique_id=1966658042]
+[node name="Panel" type="Panel" parent="." unique_id=2100108785]
 layout_mode = 0
-offset_left = 1.0
-offset_top = 2.0
-offset_right = 345.0
-offset_bottom = 279.0
+offset_right = 40.0
+offset_bottom = 40.0
 
-[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=103709760]
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1007713025]
 layout_mode = 0
-offset_right = 119.0
-offset_bottom = 150.0
+offset_right = 40.0
+offset_bottom = 40.0
 
-[node name="Title" type="Label" parent="VBoxContainer" unique_id=1487460493]
+[node name="Titre" type="Label" parent="VBoxContainer" unique_id=1071972343]
 layout_mode = 2
 
-[node name="NameInput" type="LineEdit" parent="VBoxContainer" unique_id=2069975916]
+[node name="Statusabel" type="Label" parent="VBoxContainer" unique_id=347691578]
 layout_mode = 2
-text = "GamJam"
 
-[node name="HostButton" type="Button" parent="VBoxContainer" unique_id=860039606]
+[node name="IPInput" type="LineEdit" parent="VBoxContainer" unique_id=1861419416]
 layout_mode = 2
-text = "HostButton"
-script = SubResource("GDScript_ll2xe")
+text = "192.168.1.20"
 
-[node name="JoinButton" type="Button" parent="VBoxContainer" unique_id=586122789]
+[node name="JoinButton" type="Button" parent="VBoxContainer" unique_id=259512155]
 layout_mode = 2
-text = "JoinButton"
-script = SubResource("GDScript_ll2xe")
 
-[node name="IPInput" type="LineEdit" parent="VBoxContainer" unique_id=1611102594]
-layout_mode = 2
-text = "192.168.1.195"
-
-[connection signal="pressed" from="VBoxContainer/HostButton" to="." method="_on_host_button_pressed"]
 [connection signal="pressed" from="VBoxContainer/JoinButton" to="." method="_on_join_button_pressed"]
