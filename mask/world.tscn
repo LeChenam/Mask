@@ -7,6 +7,8 @@
 [sub_resource type="BoxShape3D" id="BoxShape3D_f3sb7"]
 size = Vector3(20.852892, 0.9979038, 20.453094)
 
+[sub_resource type="CylinderMesh" id="CylinderMesh_f3sb7"]
+
 [node name="World" type="Node3D" unique_id=584979016]
 script = ExtResource("1_f3sb7")
 
@@ -24,6 +26,14 @@ transform = Transform3D(0.99975747, 0, -0.022024274, 0, 1, 0, 0.022024274, 0, 0.
 [node name="CollisionShape3D" type="CollisionShape3D" parent="LevelGeometry/StaticBody3D" unique_id=1694887328]
 transform = Transform3D(0.99998534, 0, 1.2293458e-07, 0, 1, 0, -1.2293458e-07, 0, 0.99998534, -2.2805464, -1.4732733, 0.46053267)
 shape = SubResource("BoxShape3D_f3sb7")
+
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="LevelGeometry" unique_id=1972412224]
+transform = Transform3D(4.25, 0, 0, 0, 4.25, 0, 0, 0, 4.25, 5.546128, 0.6445712, -7.5804963)
+mesh = SubResource("CylinderMesh_f3sb7")
+
+[node name="MeshInstance3D3" type="MeshInstance3D" parent="LevelGeometry" unique_id=1889420117]
+transform = Transform3D(4.25, 0, 0, 0, 4.25, 0, 0, 0, 4.25, 16.85695, 0.6445712, 10.763571)
+mesh = SubResource("CylinderMesh_f3sb7")
 
 [node name="Dealer" type="Node3D" parent="." unique_id=1347483840]
 
