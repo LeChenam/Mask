@@ -162,30 +162,34 @@ func determine_winner():
 	var best_score = -1
 	var winners = []
 	
-	print("SHOWDOWN !")
+	print("--- SHOWDOWN ---")
 	
+	# ÉTAPE 1 : On révèle les cartes de tout le monde !
 	for id in active_players:
 		var hand = player_hands[id]
-	# On dit à TOUS les clients de révéler les cartes du joueur 'id'
-		get_node("../PlayerContainer").rpc("show_player_hand", id, hand)
-		var score = HandEvaluator.evaluate(player_hands[id], community_cards)
-		print("Joueur ", id, " Score: ", score)
+		# On appelle la fonction sur le Player correspondant
+		var player_node = get_node("../PlayerContainer/" + str(id))
 		
-		if score > best_score:
-			best_score = score
-			winners = [id]
-		elif score == best_score:
-			winners.append(id)
+		# On envoie l'ordre à TOUS les clients ("call_local" dans le RPC du Player gère ça)
+		player_node.show_hand_to_all.rpc(hand)
+		
+		# Calcul du score (ton code existant)
+		var score = HandEvaluator.evaluate(hand, community_cards)
+		# ... (Ta logique de calcul du meilleur score) ...
+
+	# ÉTAPE 2 : On attend un peu pour le suspense (Optionnel mais recommandé)
+	await get_tree().create_timer(3.0).timeout
+
+	# ÉTAPE 3 : Distribution du pot (Ton code existant)
+	# ... partage du pot ...
 	
-	# Partage du pot si égalité
-	var share = pot / winners.size()
-	for w in winners:
-		player_stacks[w] += share
-		print("Gagnant : ", w, " gagne ", share)
-		sync_data(w)
-	
-	# Restart auto après 5 sec
+	# ÉTAPE 4 : Redémarrage
 	await get_tree().create_timer(5.0).timeout
+	
+	# IMPORTANT : Nettoyer les visuels avant de relancer
+	for id in active_players:
+		get_node("../PlayerContainer/" + str(id)).clear_hand_visuals.rpc()
+		
 	start_game()
 
 # --- Affichage et Sync ---

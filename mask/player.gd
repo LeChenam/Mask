@@ -108,3 +108,49 @@ func receive_cards(cards: Array):
 		
 		# On force la face visible pour le joueur local
 		card_obj.reveal()
+
+
+# --- Révélation Publique (Showdown) ---
+
+@rpc("authority", "call_local", "reliable")
+func show_hand_to_all(cards: Array):
+	print("SHOWDOWN : Cartes de ", name, " -> ", cards)
+	
+	# 1. Nettoyage : Si on avait déjà des cartes affichées, on les vire
+	if has_node("ShowdownDisplay"):
+		get_node("ShowdownDisplay").queue_free()
+	
+	# 2. Création d'un conteneur pour les cartes révélées
+	var container = Node3D.new()
+	container.name = "ShowdownDisplay"
+	add_child(container)
+	
+	# 3. Positionnement : Au-dessus de la tête du joueur (2m de haut)
+	# Tu peux ajuster le Vector3 pour les mettre sur la table devant lui si tu préfères
+	container.position = Vector3(0, 2.2, 0) 
+	
+	# 4. Instanciation des 2 cartes
+	var spacing = 0.4 # Espace entre les cartes
+	var current_x = -spacing / 2.0
+	
+	for card_id in cards:
+		var card_obj = preload("res://card.tscn").instantiate()
+		container.add_child(card_obj)
+		
+		# Position locale dans le conteneur
+		card_obj.position = Vector3(current_x, 0, 0)
+		
+		# IMPORTANT : Si ta carte est debout, assure-toi qu'elle regarde la caméra ou le public
+		# card_obj.rotation_degrees.x = 90 # À ajuster selon ton modèle 3D
+		
+		# On applique la texture (suppose que ton script Card.gd a cette fonction)
+		if card_obj.has_method("set_card_visuals"):
+			card_obj.set_card_visuals(card_id)
+		
+		current_x += spacing
+
+# Fonction pour nettoyer la table au début d'une nouvelle manche
+@rpc("authority", "call_local", "reliable")
+func clear_hand_visuals():
+	if has_node("ShowdownDisplay"): get_node("ShowdownDisplay").queue_free()
+	if has_node("HandContainer"): get_node("HandContainer").queue_free() # Tes cartes privées
