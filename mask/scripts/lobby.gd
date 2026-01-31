@@ -1,133 +1,111 @@
 extends Control
 
-# --- CONFIGURATION ---
-const GAME_PORT = 42069         # Port pour le jeu (ENet)
-const BROADCAST_PORT = 8989     # Port pour la détection LAN (UDP)
+const GAME_PORT = 42069
+const BROADCAST_PORT = 8989
 const BROADCAST_ADDRESS = "255.255.255.255"
-const MAGIC_WORD = "MASKARD_SERVER" # Pour être sûr que c'est ton jeu
-
-# --- VARIABLES RÉSEAU (Inspiré du Script A) ---
-var udp_listener = UDPServer.new()   # Écoute les broadcasts (Client potentiel)
-var udp_sender = PacketPeerUDP.new() # Envoie les broadcasts (Hôte)
-
-var searching = true
-var is_host = false
+const MAGIC_WORD = "MASKARD_SERVER"
 
 @onready var ip_input = $VBoxContainer/IPInput 
 
+var udp = PacketPeerUDP.new()
+var searching = true
+var broadcast_timer = Timer.new()
+
 func _ready() -> void:
-	# Nettoyage
-	multiplayer.multiplayer_peer = null
+	# 1. Signaux réseau
+	multiplayer.connected_to_server.connect(_on_connected_ok)
+	multiplayer.connection_failed.connect(_on_connected_fail)
+	multiplayer.server_disconnected.connect(_on_server_lost)
+
+	# 2. Préparation UDP (Bind pour écouter)
+	udp.set_broadcast_enabled(true)
+	var err = udp.bind(BROADCAST_PORT)
 	
-	# Signaux du multijoueur (Jeu)
-	multiplayer.connected_to_server.connect(_on_connection_success)
-	multiplayer.connection_failed.connect(_on_connection_failed)
-	
-	# 1. Préparer l'envoi UDP (pour plus tard si on devient hôte)
-	udp_sender.set_broadcast_enabled(true)
-	
-	# 2. Commencer à écouter sur le port de Broadcast
-	var err = udp_listener.listen(BROADCAST_PORT)
-	if err != OK:
-		print("INFO: Impossible d'écouter sur le port de scan (peut-être déjà utilisé).")
-		# Si on ne peut pas écouter, c'est probablement qu'une instance tourne déjà ici,
-		# ou qu'on devrait juste essayer de hoster/rejoindre manuellement.
-	
-	print("RECHERCHE : Scan du réseau local en cours...")
-	
-	# 3. Lancer le Timer d'auto-host (2 secondes)
+	if err == OK:
+		print("LOBBY : Écoute du réseau sur le port ", BROADCAST_PORT)
+	else:
+		print("LOBBY : Port UDP occupé. Une instance tourne peut-être déjà ?")
+		# On ne bloque pas, on continue, mais le scan auto ne marchera peut-être pas sur ce PC
+
+	# 3. Timer de 2 secondes pour devenir Hôte si personne ne répond
+	print("LOBBY : Recherche de serveur...")
 	get_tree().create_timer(2.0).timeout.connect(_on_scan_timeout)
+	
+	# Timer pour envoyer le broadcast (sera activé si on devient Host)
+	add_child(broadcast_timer)
+	broadcast_timer.wait_time = 1.0
+	broadcast_timer.timeout.connect(_send_broadcast)
 
-func _process(_delta: float) -> void:
-	# --- LOGIQUE SERVEUR (HÔTE) ---
-	if is_host:
-		# L'hôte crie son existence en boucle
-		var data = {
-			"key": MAGIC_WORD,
-			"port": GAME_PORT # On indique aux clients sur quel port se connecter
-		}
-		var packet = var_to_bytes(data)
-		udp_sender.set_dest_address(BROADCAST_ADDRESS, BROADCAST_PORT)
-		udp_sender.put_packet(packet)
-		return # L'hôte ne cherche pas d'autres serveurs
-
-	# --- LOGIQUE CLIENT (RECHERCHE) ---
-	if searching:
-		udp_listener.poll() # Vérifie s'il y a des paquets
+func _process(_delta):
+	# Si on cherche, on écoute les paquets UDP
+	if searching and udp.get_available_packet_count() > 0:
+		var sender_ip = udp.get_packet_ip()
+		var packet = udp.get_packet()
+		var message = packet.get_string_from_utf8()
 		
-		if udp_listener.is_connection_available():
-			var peer = udp_listener.take_connection()
-			var sender_ip = peer.get_packet_ip()
-			var packet_bytes = peer.get_packet()
-			
-			# On tente de lire les données
-			var data = bytes_to_var(packet_bytes)
-			
-			# Vérification : Est-ce bien notre jeu ?
-			if data is Dictionary and data.has("key") and data["key"] == MAGIC_WORD:
-				print("SERVEUR TROUVÉ : IP -> ", sender_ip)
-				var target_port = data.get("port", GAME_PORT)
-				_stop_searching_and_join(sender_ip, target_port)
+		# On ignore nos propres messages (important !)
+		if message == MAGIC_WORD and sender_ip != "" and sender_ip != "0.0.0.0":
+			print("LOBBY : Serveur trouvé à l'IP : ", sender_ip)
+			_join_game(sender_ip)
 
 func _on_scan_timeout():
 	if searching:
-		print("RECHERCHE : Délai dépassé. Aucun serveur trouvé.")
-		_start_hosting()
+		print("LOBBY : Aucun serveur trouvé. Je deviens l'HÔTE.")
+		_host_game()
 
-# --- FONCTIONS DE GESTION ---
-
-func _start_hosting() -> void:
+# --- HOSTING ---
+func _host_game():
 	searching = false
-	udp_listener.stop() # On arrête d'écouter
-	
 	var peer = ENetMultiplayerPeer.new()
-	var error = peer.create_server(GAME_PORT)
+	var err = peer.create_server(GAME_PORT)
 	
-	if error == OK:
+	if err == OK:
 		multiplayer.multiplayer_peer = peer
-		is_host = true
-		print("SERVEUR : Créé avec succès sur le port ", GAME_PORT)
-		_load_game_scene()
+		print("SERVEUR : Démarré (ID 1).")
+		
+		# On commence à crier "JE SUIS LÀ" sur le réseau
+		broadcast_timer.start()
+		
+		_load_world()
 	else:
-		print("ERREUR SERVEUR : Impossible de créer le serveur (Code ", error, ")")
+		print("ERREUR : Impossible de créer le serveur.")
 
-func _stop_searching_and_join(ip: String, port: int):
+func _send_broadcast():
+	# Le serveur envoie le mot magique à tout le monde
+	udp.set_dest_address(BROADCAST_ADDRESS, BROADCAST_PORT)
+	udp.put_packet(MAGIC_WORD.to_utf8_buffer())
+
+# --- JOINING ---
+func _join_game(ip: String):
 	searching = false
-	udp_listener.stop() # On arrête d'écouter pour ne pas spammer les tentatives
-	_join_server(ip, port)
-
-func _join_server(ip: String, port: int) -> void:
-	print("CLIENT : Tentative de connexion vers ", ip, ":", port)
+	broadcast_timer.stop() # On arrête de broadcaster au cas où
+	
+	print("CLIENT : Connexion vers ", ip, "...")
 	var peer = ENetMultiplayerPeer.new()
-	var error = peer.create_client(ip, port)
-	
-	if error == OK:
-		multiplayer.multiplayer_peer = peer
-	else:
-		print("ERREUR CLIENT : Impossible de créer le client (Code ", error, ")")
-		# En cas d'échec critique, on pourrait relancer le scan ou hoster
-		# _start_hosting() 
+	peer.create_client(ip, GAME_PORT)
+	multiplayer.multiplayer_peer = peer
 
-# --- BOUTON JOIN MANUEL (Optionnel) ---
-func _on_join_button_pressed() -> void:
+# --- BOUTON MANUEL ---
+func _on_join_button_pressed():
 	searching = false
-	var target_ip = ip_input.text if ip_input.text != "" else "127.0.0.1"
-	_join_server(target_ip, GAME_PORT)
+	var ip = ip_input.text
+	if ip == "": ip = "127.0.0.1"
+	_join_game(ip)
 
-# --- CALLBACKS RESEAU ---
-func _on_connection_success():
-	print("RESEAU : Connecté au serveur !")
-	_load_game_scene()
+# --- CALLBACKS ---
+func _on_connected_ok():
+	print("RÉSEAU : Connecté au serveur !")
+	_load_world()
 
-func _on_connection_failed():
-	print("RESEAU : Échec de la connexion.")
-	# Ici, tu pourrais remettre searching = true pour réessayer
+func _on_connected_fail():
+	print("RÉSEAU : Échec connexion.")
+	searching = true # On recommence à chercher ?
 
-func _load_game_scene():
-	var scene_path = "res://world.tscn" # Assure-toi que ce chemin est bon
-	if FileAccess.file_exists(scene_path):
-		# Attention: en réseau, souvent seul l'hôte change la scène et les clients suivent
-		# Mais pour l'instant, on le fait localement
-		get_tree().change_scene_to_file(scene_path)
-	else:
-		print("ERREUR : Scène introuvable : ", scene_path)
+func _on_server_lost():
+	print("RÉSEAU : Connexion perdue.")
+	get_tree().change_scene_to_file("res://lobby.tscn")
+
+func _load_world():
+	# On ferme le port UDP proprement avant de changer de scène
+	udp.close()
+	get_tree().change_scene_to_file("res://world.tscn")
