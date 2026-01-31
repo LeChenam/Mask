@@ -3,6 +3,22 @@ extends Node3D # Important : Node3D, pas Node ou Control !
 # Référence au container des joueurs
 @onready var player_container = $PlayerContainer
 
+# --- Broadcast LAN pour que de nouveaux joueurs puissent rejoindre ---
+const BROADCAST_PORT = 8989
+const MAGIC_WORD = "MASKARD_SERVER"
+var udp_broadcast = PacketPeerUDP.new()
+var broadcast_timer = Timer.new()
+var current_broadcast_ip = "255.255.255.255"
+
+func _get_local_broadcast_ip() -> String:
+	var addresses = IP.get_local_addresses()
+	for ip in addresses:
+		if ip.begins_with("192.168.") or ip.begins_with("10."):
+			var parts = ip.split(".")
+			parts[3] = "255"
+			return ".".join(parts)
+	return "255.255.255.255"
+
 func _ready():
 	# Si on n'est pas sur le réseau, on ne fait rien (sécurité)
 	if not multiplayer.has_multiplayer_peer(): return
@@ -11,10 +27,13 @@ func _ready():
 	multiplayer.peer_connected.connect(_on_player_connected)
 	multiplayer.peer_disconnected.connect(_on_player_disconnected)
 	
-	# Si JE SUIS LE SERVEUR, je dois gérer les spawns
+	# Si JE SUIS LE SERVEUR, je dois gérer les spawns ET continuer à broadcaster
 	if multiplayer.is_server():
 		print("--- SERVEUR : Monde chargé. Création de mon propre joueur (ID 1) ---")
 		spawn_player(1)
+		
+		# Démarrer le broadcast continu pour les nouveaux joueurs
+		_setup_broadcast()
 
 func _on_player_connected(peer_id):
 	# Seul le serveur a le droit de faire apparaître des gens
@@ -43,3 +62,29 @@ func spawn_player(id):
 	# On décale un peu la position pour ne pas spawn les uns sur les autres
 	var spawn_index = player_container.get_child_count()
 	new_player.global_position = Vector3(spawn_index * 2.0, 2.0, 0.0)
+
+# --- BROADCAST CONTINU POUR LES NOUVEAUX JOUEURS ---
+func _setup_broadcast():
+	current_broadcast_ip = _get_local_broadcast_ip()
+	print("WORLD : Broadcast LAN actif sur ", current_broadcast_ip)
+	
+	udp_broadcast.set_broadcast_enabled(true)
+	
+	# Timer pour broadcaster toutes les 0.5 secondes
+	add_child(broadcast_timer)
+	broadcast_timer.wait_time = 0.5
+	broadcast_timer.timeout.connect(_send_broadcast)
+	broadcast_timer.start()
+	
+	# Envoyer immédiatement un premier broadcast
+	_send_broadcast()
+
+func _send_broadcast():
+	udp_broadcast.set_dest_address(current_broadcast_ip, BROADCAST_PORT)
+	udp_broadcast.put_packet(MAGIC_WORD.to_utf8_buffer())
+
+func _exit_tree():
+	# Nettoyer proprement quand la scène est détruite
+	if multiplayer.is_server():
+		broadcast_timer.stop()
+		udp_broadcast.close()

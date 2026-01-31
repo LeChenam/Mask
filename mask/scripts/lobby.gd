@@ -6,6 +6,7 @@ const BROADCAST_PORT = 8989
 const MAGIC_WORD = "MASKARD_SERVER"
 
 var current_broadcast_ip = "255.255.255.255" # Valeur par défaut
+var my_local_ips: Array = [] # Pour ignorer nos propres paquets
 
 # --- Fonction utilitaire pour trouver l'adresse .255 locale ---
 func _get_local_broadcast_ip() -> String:
@@ -36,7 +37,9 @@ func _ready() -> void:
 	var err = udp.bind(BROADCAST_PORT)
 	
 	current_broadcast_ip = _get_local_broadcast_ip()
+	my_local_ips = IP.get_local_addresses() # Stocker nos IPs pour filtrage
 	print("LOBBY : Adresse de broadcast calculée -> ", current_broadcast_ip)
+	print("LOBBY : Mes IPs locales -> ", my_local_ips)
 	
 	if err == OK:
 		print("LOBBY : Écoute du réseau sur le port ", BROADCAST_PORT)
@@ -44,13 +47,13 @@ func _ready() -> void:
 		print("LOBBY : Port UDP occupé. Une instance tourne peut-être déjà ?")
 		# On ne bloque pas, on continue, mais le scan auto ne marchera peut-être pas sur ce PC
 
-	# 3. Timer de 2 secondes pour devenir Hôte si personne ne répond
+	# 3. Timer de recherche plus long pour laisser le temps au serveur de broadcaster
 	print("LOBBY : Recherche de serveur...")
-	get_tree().create_timer(2.0).timeout.connect(_on_scan_timeout)
+	get_tree().create_timer(4.0).timeout.connect(_on_scan_timeout)
 	
 	# Timer pour envoyer le broadcast (sera activé si on devient Host)
 	add_child(broadcast_timer)
-	broadcast_timer.wait_time = 1.0
+	broadcast_timer.wait_time = 0.5 # Plus fréquent pour être détecté rapidement
 	broadcast_timer.timeout.connect(_send_broadcast)
 
 func _process(_delta):
@@ -60,10 +63,13 @@ func _process(_delta):
 		var packet = udp.get_packet()
 		var message = packet.get_string_from_utf8()
 		
-		# On ignore nos propres messages (important !)
-		if message == MAGIC_WORD and sender_ip != "" and sender_ip != "0.0.0.0":
+		# On ignore nos propres messages (vérification complète avec toutes nos IPs)
+		var is_my_own_ip = sender_ip in my_local_ips
+		if message == MAGIC_WORD and sender_ip != "" and sender_ip != "0.0.0.0" and not is_my_own_ip:
 			print("LOBBY : Serveur trouvé à l'IP : ", sender_ip)
 			_join_game(sender_ip)
+		elif is_my_own_ip:
+			print("LOBBY : Paquet ignoré (c'est mon propre broadcast)")
 
 func _on_scan_timeout():
 	if searching:
@@ -80,7 +86,8 @@ func _host_game():
 		multiplayer.multiplayer_peer = peer
 		print("SERVEUR : Démarré (ID 1).")
 		
-		# On commence à crier "JE SUIS LÀ" sur le réseau
+		# Envoyer immédiatement un broadcast puis continuer avec le timer
+		_send_broadcast()
 		broadcast_timer.start()
 		
 		_load_world()
@@ -123,6 +130,7 @@ func _on_server_lost():
 	get_tree().change_scene_to_file("res://lobby.tscn")
 
 func _load_world():
-	# On ferme le port UDP proprement avant de changer de scène
-	udp.close()
+	# On ferme l'UDP seulement si on est CLIENT (le serveur continue à broadcaster)
+	if not multiplayer.is_server():
+		udp.close()
 	get_tree().change_scene_to_file("res://world.tscn")
