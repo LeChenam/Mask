@@ -4,23 +4,37 @@ extends CharacterBody3D  # <--- C'EST CETTE LIGNE QUI EST CRUCIALE
 @export var sensitivity = 0.003
 @onready var camera = $Head/Camera3D
 
+var is_local_player = false
+
 func _enter_tree():
 	# Définit l'autorité réseau (ID du joueur)
-	set_multiplayer_authority(name.to_int())
+	var player_id = name.to_int()
+	set_multiplayer_authority(player_id)
+	
+	# Vérifier si c'est notre joueur local
+	is_local_player = (player_id == multiplayer.get_unique_id())
+	print("PLAYER : Spawn du joueur ", player_id, " - Est local: ", is_local_player)
 
 func _ready():
-	if is_multiplayer_authority():
+	# Attendre un frame pour que tout soit bien synchronisé
+	await get_tree().process_frame
+	
+	if is_local_player:
 		# C'est MON perso
-		if camera: camera.make_current()
+		print("PLAYER : Configuration de MON personnage (ID ", multiplayer.get_unique_id(), ")")
+		if camera: 
+			camera.make_current()
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	else:
 		# C'est le perso d'un AUTRE
-		if camera: camera.current = false
+		print("PLAYER : Personnage d'un autre joueur détecté")
+		if camera: 
+			camera.current = false
 		set_physics_process(false)
 		set_process_unhandled_input(false)
 
 func _unhandled_input(event):
-	if not is_multiplayer_authority(): return
+	if not is_local_player: return
 	
 	if event is InputEventMouseMotion:
 		rotate_y(-event.relative.x * sensitivity)
@@ -28,11 +42,8 @@ func _unhandled_input(event):
 		camera.rotation.x = clamp(camera.rotation.x, deg_to_rad(-80), deg_to_rad(80))
 
 func _physics_process(delta):
-	# Pas besoin de re-vérifier is_multiplayer_authority() ici 
-	# car on a coupé le physics_process dans le _ready() pour les autres.
+	if not is_local_player: return
 	
-	# C'est ici que tu avais l'erreur. 
-	# Cela ne marche que si "extends CharacterBody3D" est présent en haut.
 	if not is_on_floor():
 		velocity.y -= 9.8 * delta
 

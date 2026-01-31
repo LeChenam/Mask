@@ -63,6 +63,8 @@ func _process(_delta):
 		var packet = udp.get_packet()
 		var message = packet.get_string_from_utf8()
 		
+		print("LOBBY : Paquet reçu de ", sender_ip, " -> '", message, "'")
+		
 		# On ignore nos propres messages (vérification complète avec toutes nos IPs)
 		var is_my_own_ip = sender_ip in my_local_ips
 		if message == MAGIC_WORD and sender_ip != "" and sender_ip != "0.0.0.0" and not is_my_own_ip:
