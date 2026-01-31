@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" uid="uid://dcg0aprrlldl0" path="res://scripts/world.gd" id="1_f3sb7"]
 [ext_resource type="Script" path="res://dealer.gd" id="2_fj7yv"]
-[ext_resource type="Script" path="res://dealer.gd" id="2_fj7yv"]
 
 [node name="World" type="Node3D" unique_id=584979016]
 script = ExtResource("1_f3sb7")
@@ -14,7 +13,6 @@ script = ExtResource("1_f3sb7")
 [node name="WorldEnvironment" type="WorldEnvironment" parent="LevelGeometry" unique_id=763815000]
 
 [node name="Dealer" type="Node3D" parent="." unique_id=1347483840]
-script = ExtResource("2_fj7yv")
 script = ExtResource("2_fj7yv")
 
 [node name="SpawnPoint" type="Node3D" parent="." unique_id=329985917]
@@ -37,8 +35,7 @@ spawn_path = NodePath("../PlayerContainer")
 [node name="CardMultiplayerSpawner2" type="MultiplayerSpawner" parent="." unique_id=1260234672]
 spawn_path = NodePath("../CardContainer")
 
-[node name="CardMultiplayerSpawner2" type="MultiplayerSpawner" parent="." unique_id=1260234672]
-_spawnable_scenes = PackedStringArray("uid://c2dgxas7qt00")
+[node name="CardMultiplayerSpawner3" type="MultiplayerSpawner" parent="." unique_id=1814122363]
 spawn_path = NodePath("../CardContainer")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=868651673]
