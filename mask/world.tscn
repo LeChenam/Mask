@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://dnuqhjie2j5wk"]
+[gd_scene format=3 uid="uid://480o6561hjtn"]
 
 [ext_resource type="Script" uid="uid://dcg0aprrlldl0" path="res://scripts/world.gd" id="1_f3sb7"]
 [ext_resource type="Script" path="res://dealer.gd" id="2_fj7yv"]
@@ -30,11 +30,9 @@ script = ExtResource("2_fj7yv")
 [node name="CardContainer" type="Node3D" parent="." unique_id=1925936243]
 
 [node name="PlayerMultiplayerSpawner" type="MultiplayerSpawner" parent="." unique_id=852467706]
-_spawnable_scenes = PackedStringArray("uid://bxs7aak1prc1q")
 spawn_path = NodePath("../PlayerContainer")
 
 [node name="CardMultiplayerSpawner2" type="MultiplayerSpawner" parent="." unique_id=1260234672]
-_spawnable_scenes = PackedStringArray("uid://c2dgxas7qt00")
 spawn_path = NodePath("../CardContainer")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=868651673]
