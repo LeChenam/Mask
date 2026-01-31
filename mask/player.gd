@@ -1,54 +1,47 @@
 extends Node3D
 
-func _enter_tree():
-	# Cette fonction se lance AVANT le _ready
-	# On définit qui est le propriétaire de ce bonhomme
+@onready var action_ui = $UI/ActionButtons
+@onready var info_label = $UI/Label_Info
+@onready var bet_input = $UI/ActionButtons/HBoxContainer/BetInput
+@onready var camera = $Camera3D
+
+func _ready():
+	# Définit qui possède ce personnage
 	set_multiplayer_authority(name.to_int())
 
-func _ready() -> void:
-	# Si ce bonhomme est À MOI (Local Player)
 	if is_multiplayer_authority():
-		print("PLAYER: C'est mon personnage ! (ID: " + name + ")")
-		# Active la caméra ici si tu en as une
-		if has_node("Camera3D"):
-			$Camera3D.current = true
+		action_ui.hide()
+		camera.current = true
+		info_label.text = "En attente du début de partie..."
+		
+		# Connexion des boutons
+		$UI/ActionButtons/HBoxContainer/Btn_Miser.pressed.connect(_on_btn_miser_pressed)
+		$UI/ActionButtons/HBoxContainer/Btn_Coucher.pressed.connect(_on_btn_coucher_pressed)
 	else:
-		print("PLAYER: C'est le personnage d'un autre. (ID: " + name + ")")
-		# Désactive la caméra des autres pour pas voir à travers leurs yeux
-		if has_node("Camera3D"):
-			$Camera3D.current = false
+		# On supprime l'UI des autres joueurs pour qu'elle n'apparaisse pas sur notre écran
+		$UI.queue_free()
 
-@rpc("call_local")
+# --- Appelé par le Dealer (Serveur) ---
+@rpc("authority", "call_local", "reliable")
 func notify_turn(is_my_turn: bool):
-	if not is_multiplayer_authority(): return
+	if is_multiplayer_authority():
+		action_ui.visible = is_my_turn
+		info_label.text = "À VOUS DE JOUER !" if is_my_turn else "Le voisin réfléchit..."
 
-	if is_my_turn:
-		print("C'EST A MOI DE JOUER !")
-		# Affiche tes boutons UI ici (Miser, Coucher)
-		# $CanvasLayer/ButtonContainer.show()
-	else:
-		print("J'attends mon tour...")
-		# $CanvasLayer/ButtonContainer.hide()
+@rpc("authority", "call_remote", "reliable")
+func receive_cards(cards: Array):
+	print("J'ai reçu mes cartes : ", cards)
+	# TODO: Ici tu pourras instancier visuellement les cartes devant le joueur
 
-# Fonctions à connecter à tes boutons d'interface
+# --- Envoi vers le Dealer ---
 func _on_btn_miser_pressed():
-	# On envoie l'action au serveur
-	rpc_id(1, "server_receive_bet", 100) 
+	var amount = int(bet_input.value)
+	# Chemin absolu vers le nœud Dealer dans la scène World
+	var dealer = get_node("/root/World/Dealer") 
+	dealer.server_receive_action.rpc_id(1, "BET", amount)
+	action_ui.hide()
 
-func _on_btn_coucher_pressed():
-	rpc_id(1, "server_receive_fold")
-
-# --- Actions reçues par le Serveur (définies ici pour simplifier) ---
-
-@rpc("any_peer", "call_local")
-func server_receive_bet(amount):
-	if not multiplayer.is_server(): return
-	print("Le joueur " + name + " veut miser " + str(amount))
-	# Ici, vérifie l'argent, ajoute au pot, puis :
-	#get_parent().get_parent().next_turn() # Retour au World pour passer la main
-
-@rpc("any_peer", "call_local")
-func server_receive_fold():
-	if not multiplayer.is_server(): return
-	print("Le joueur " + name + " se couche.")
-	# Gérer le fold...
+func _on_btn_coucher_pressed() -> void:
+	var dealer = get_node("/root/World/Dealer")
+	dealer.server_receive_action.rpc_id(1, "FOLD", 0)
+	action_ui.hide()
