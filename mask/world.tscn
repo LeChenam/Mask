@@ -2,14 +2,28 @@
 
 [ext_resource type="Script" uid="uid://dcg0aprrlldl0" path="res://scripts/world.gd" id="1_f3sb7"]
 
+[sub_resource type="PlaneMesh" id="PlaneMesh_f3sb7"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_f3sb7"]
+size = Vector3(20.852892, 0.9979038, 20.453094)
+
 [node name="World" type="Node3D" unique_id=584979016]
 script = ExtResource("1_f3sb7")
 
 [node name="LevelGeometry" type="Node3D" parent="." unique_id=1135009950]
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="LevelGeometry" unique_id=1477941928]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0664646, -0.014107943, 0.101745844)
+mesh = SubResource("PlaneMesh_f3sb7")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="LevelGeometry" unique_id=763815000]
+
+[node name="StaticBody3D" type="StaticBody3D" parent="LevelGeometry" unique_id=1098773581]
+transform = Transform3D(0.99975747, 0, -0.022024274, 0, 1, 0, 0.022024274, 0, 0.99975747, 0, 0.37953675, 0.068846524)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="LevelGeometry/StaticBody3D" unique_id=1694887328]
+transform = Transform3D(0.99998534, 0, 1.2293458e-07, 0, 1, 0, -1.2293458e-07, 0, 0.99998534, -2.2805464, -1.4732733, 0.46053267)
+shape = SubResource("BoxShape3D_f3sb7")
 
 [node name="Dealer" type="Node3D" parent="." unique_id=1347483840]
 
@@ -66,5 +80,5 @@ offset_bottom = 136.0
 
 [node name="PlayerContainer" type="Node" parent="." unique_id=183348286]
 
-[node name="Camera3D" type="Camera3D" parent="." unique_id=1177677792]
-transform = Transform3D(0.98260957, 0.17824826, -0.052018747, -0.1726574, 0.98016953, 0.09724755, 0.06832141, -0.08657495, 0.9938999, -0.08839284, 1.1592804, 3.262509)
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=2128364230]
+transform = Transform3D(0.9870832, 0, 0.16020852, 0, 1, 0, -0.16020852, 0, 0.9870832, -0.96711016, 2.646225, 6.060768)
