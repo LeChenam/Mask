@@ -123,18 +123,20 @@ func server_receive_action(type: String, value: int):
 		if turn_index >= active_players.size(): turn_index = 0
 		
 	elif type == "BET":
-		var cost = value # Le joueur envoie le total qu'il veut mettre
-		var actual_bet = cost - current_round_bets.get(sender_id, 0)
+		var added_amount = value 
 		
-		if player_stacks[sender_id] >= actual_bet:
-			player_stacks[sender_id] -= actual_bet
-			current_round_bets[sender_id] = cost
-			pot += actual_bet
+		if player_stacks[sender_id] >= added_amount:
+			player_stacks[sender_id] -= added_amount
 			
-			# Si on relance (Raise), on reset le tour de table
-			if cost > highest_bet:
-				highest_bet = cost
-				last_raiser_index = turn_index 
+			# On ajoute au total déjà mis par ce joueur
+			current_round_bets[sender_id] = current_round_bets.get(sender_id, 0) + added_amount
+			
+			pot += added_amount
+			
+			# On vérifie si c'est une relance par rapport à la plus grosse mise
+			if current_round_bets[sender_id] > highest_bet:
+				highest_bet = current_round_bets[sender_id]
+				last_raiser_index = turn_index
 			
 			sync_data(sender_id)
 			sync_pot()
