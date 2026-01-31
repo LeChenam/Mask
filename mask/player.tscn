@@ -1,0 +1,20 @@
+[gd_scene format=3 uid="uid://bxs7aak1prc1q"]
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_sh265"]
+
+[node name="Player" type="Node3D" unique_id=1196476844]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=2065440034]
+
+[node name="Label" type="Label" parent="." unique_id=4765064]
+offset_right = 40.0
+offset_bottom = 23.0
+
+[node name="Head" type="Node3D" parent="." unique_id=26157597]
+
+[node name="Camera3D" type="Camera3D" parent="Head" unique_id=1713301794]
+
+[node name="RayCast3D" type="RayCast3D" parent="Head" unique_id=200838460]
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=1108753053]
+replication_config = SubResource("SceneReplicationConfig_sh265")

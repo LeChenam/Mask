@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://c2dgxas7qt00"]
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_nxf5b"]
+
+[node name="Card" type="Area3D" unique_id=1179918831]
+
+[node name="MeshFace" type="MeshInstance3D" parent="." unique_id=86999491]
+
+[node name="MeshDos" type="MeshInstance3D" parent="." unique_id=1406519307]
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=1843628164]
+replication_config = SubResource("SceneReplicationConfig_nxf5b")

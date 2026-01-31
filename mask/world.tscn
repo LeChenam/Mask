@@ -1,0 +1,54 @@
+[gd_scene format=3 uid="uid://dnuqhjie2j5wk"]
+
+[node name="World" type="Node3D" unique_id=584979016]
+
+[node name="LevelGeometry" type="Node3D" parent="." unique_id=1135009950]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="LevelGeometry" unique_id=1477941928]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="LevelGeometry" unique_id=763815000]
+
+[node name="Dealer" type="Node3D" parent="." unique_id=1347483840]
+
+[node name="SpawnPoint" type="Node3D" parent="." unique_id=329985917]
+
+[node name="Marker3D" type="Marker3D" parent="SpawnPoint" unique_id=1009201828]
+
+[node name="Marker3D2" type="Marker3D" parent="SpawnPoint" unique_id=1556737425]
+
+[node name="Marker3D3" type="Marker3D" parent="SpawnPoint" unique_id=98137635]
+
+[node name="Marker3D4" type="Marker3D" parent="SpawnPoint" unique_id=1076175584]
+
+[node name="Marker3D5" type="Marker3D" parent="SpawnPoint" unique_id=1282564919]
+
+[node name="PlayerContainer" type="Node" parent="." unique_id=183348286]
+
+[node name="CardContainer" type="Node3D" parent="." unique_id=1925936243]
+
+[node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="." unique_id=852467706]
+_spawnable_scenes = PackedStringArray("uid://bxs7aak1prc1q")
+spawn_path = NodePath("../PlayerContainer")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=868651673]
+
+[node name="Control" type="Control" parent="CanvasLayer" unique_id=1805318125]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="SpinBox" type="SpinBox" parent="CanvasLayer/Control" unique_id=120483987]
+layout_mode = 0
+offset_right = 86.5
+offset_bottom = 31.0
+
+[node name="Button" type="Button" parent="CanvasLayer/Control" unique_id=2064428252]
+layout_mode = 0
+offset_right = 8.0
+offset_bottom = 8.0
+
+[node name="Button2" type="Button" parent="CanvasLayer/Control" unique_id=1237672042]
+layout_mode = 0
+offset_right = 8.0
+offset_bottom = 8.0
