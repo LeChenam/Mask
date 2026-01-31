@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://1k42f4yajtub"]
+
+[ext_resource type="PackedScene" uid="uid://cc50yal8mepg6" path="res://assets/obj/human.glb" id="1_5ytj7"]
+[ext_resource type="PackedScene" uid="uid://bb0841yemduxa" path="res://assets/obj/mask_croupier.glb" id="2_tps0g"]
+
+[node name="Croupier" type="Node3D" unique_id=1481076723]
+
+[node name="human" parent="." unique_id=1053134584 instance=ExtResource("1_5ytj7")]
+transform = Transform3D(-0.3, 0, 2.6226834e-08, 0, 0.3, 0, -2.6226834e-08, 0, -0.3, 0, 0, 0)
+
+[node name="mask_croupier" parent="." unique_id=273254613 instance=ExtResource("2_tps0g")]
+transform = Transform3D(-0.1, 0, -1.509958e-08, 0, 0.1, 0, 1.509958e-08, 0, -0.1, -0.0028024018, 0.89377725, -0.21563792)
