@@ -2,6 +2,8 @@ extends Node3D # Important : Node3D, pas Node ou Control !
 
 # Référence au container des joueurs
 @onready var player_container = $PlayerContainer
+# --- AJOUT ICI : Référence au dossier des points de spawn ---
+@onready var spawn_points = $SpawnPoints
 
 # --- Broadcast LAN pour que de nouveaux joueurs puissent rejoindre ---
 const BROADCAST_PORT = 8989
@@ -57,11 +59,24 @@ func spawn_player(id):
 	new_player.name = str(id)
 	
 	# On l'ajoute au container (surveillé par le MultiplayerSpawner)
-	player_container.add_child(new_player)
+	player_container.add_child(new_player, true)
 	
-	# On décale un peu la position pour ne pas spawn les uns sur les autres
-	var spawn_index = player_container.get_child_count()
-	new_player.global_position = Vector3(spawn_index * 2.0, 2.0, 0.0)
+	# --- CHANGEMENT ICI : Logique des SpawnPoints ---
+	var points = spawn_points.get_children()
+	
+	if points.size() > 0:
+		# On récupère l'index du joueur (0 pour le 1er, 1 pour le 2ème...)
+		var index = player_container.get_child_count() - 1
+		
+		# Le modulo (%) permet de revenir au siège 0 si on a plus de joueurs que de sièges
+		var target_point = points[index % points.size()]
+		
+		# On applique la Position ET la Rotation (pour qu'il regarde la table)
+		new_player.global_transform = target_point.global_transform
+	else:
+		# Fallback si tu as oublié de mettre les markers
+		print("ERREUR : Aucun marker dans SpawnPoints !")
+		new_player.global_position = Vector3(0, 2, 0)
 
 # --- BROADCAST CONTINU POUR LES NOUVEAUX JOUEURS ---
 func _setup_broadcast():

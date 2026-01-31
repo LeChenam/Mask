@@ -20,7 +20,7 @@ func _get_local_broadcast_ip() -> String:
 			return ".".join(parts)
 	return "255.255.255.255" # Fallback si on ne trouve rien
 
-@onready var ip_input = $VBoxContainer/IPInput 
+@onready var ip_input = $CenterContainer/VBoxContainer/IPInput 
 
 var udp = PacketPeerUDP.new()
 var searching = true
