@@ -163,6 +163,9 @@ func determine_winner():
 	print("SHOWDOWN !")
 	
 	for id in active_players:
+		var hand = player_hands[id]
+	# On dit à TOUS les clients de révéler les cartes du joueur 'id'
+		get_node("../PlayerContainer").rpc("show_player_hand", id, hand)
 		var score = HandEvaluator.evaluate(player_hands[id], community_cards)
 		print("Joueur ", id, " Score: ", score)
 		
