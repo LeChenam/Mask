@@ -49,10 +49,6 @@ func notify_turn(is_my_turn: bool, amount_to_call: int = 0):
 	else:
 		info_label.text = "Le voisin réfléchit..."
 
-@rpc("authority", "call_remote", "reliable")
-func receive_cards(cards: Array):
-	print("J'ai reçu mes cartes : ", cards)
-	# Instanciation visuelle à faire ici
 
 # Correction : Renommé 'update_stack' pour correspondre au Dealer
 @rpc("authority", "call_local", "reliable")
@@ -87,3 +83,28 @@ func _on_btn_coucher_pressed():
 	var dealer = get_node("/root/World/Dealer")
 	dealer.server_receive_action.rpc_id(1, "FOLD", 0)
 	action_ui.hide()
+	
+@rpc("authority", "call_remote", "reliable")
+func receive_cards(cards: Array):
+	print("Cartes reçues : ", cards)
+	
+	# Nettoyer les vieilles cartes s'il y en a
+	if has_node("HandContainer"): $HandContainer.queue_free()
+	
+	var hand_node = Node3D.new()
+	hand_node.name = "HandContainer"
+	add_child(hand_node)
+	
+	# Positionner les cartes devant la caméra (Ajuste les Vector3 selon ta scène)
+	var offsets = [Vector3(-0.5, -0.5, -1.5), Vector3(0.5, -0.5, -1.5)]
+	
+	for i in range(cards.size()):
+		var card_obj = preload("res://card.tscn").instantiate()
+		hand_node.add_child(card_obj)
+		card_obj.position = offsets[i]
+		
+		# On applique la texture
+		card_obj.set_card_visuals(cards[i])
+		
+		# On force la face visible pour le joueur local
+		card_obj.reveal()
