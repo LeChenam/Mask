@@ -1,6 +1,5 @@
-extends CharacterBody3D  # <--- C'EST CETTE LIGNE QUI EST CRUCIALE
+extends CharacterBody3D 
 
-@export var speed = 5.0
 @export var sensitivity = 0.003
 @onready var camera = $Head/Camera3D
 

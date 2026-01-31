@@ -1,85 +1,95 @@
 extends Node3D
-# ============================================================================
-# WORLD - Scène principale du jeu (utilise NetworkManager)
-# ============================================================================
 
 @onready var player_container = $PlayerContainer
 @onready var spawn_points = $SpawnPoints
+@onready var spawner = $MultiplayerSpawner
+
+# Dictionnaire pour suivre les places occupées { peer_id : spawn_index }
+var assigned_spawn_indices: Dictionary = {}
+var next_spawn_index: int = 0
 
 func _ready():
-	# Sécurité : on doit être connecté au réseau
 	if not multiplayer.has_multiplayer_peer():
 		print("WORLD : Pas de connexion réseau, retour au lobby")
 		get_tree().change_scene_to_file("res://scenes/lobby.tscn")
 		return
 
-	# Connexion aux signaux du NetworkManager
+	# --- CONFIGURATION IMPORTANTE DU SPAWNER ---
+	# On assigne la fonction qui va construire le joueur sur TOUS les PC (Serveur ET Clients)
+	spawner.spawn_function = _spawn_player_setup
+
 	NetworkManager.player_joined.connect(_on_player_joined)
 	NetworkManager.player_left.connect(_on_player_left)
 	NetworkManager.server_disconnected.connect(_on_server_disconnected)
 
-	# Si je suis le serveur, je spawn mon propre joueur
 	if NetworkManager.is_server():
 		print("WORLD : Je suis le serveur, spawn de mon joueur (ID 1)")
 		_spawn_player(1)
 
 # ============================================================================
-# GESTION DES JOUEURS
+# LA MAGIE DU SPAWN (C'est ici que tout change)
+# ============================================================================
+
+# Cette fonction est appelée AUTOMATIQUEMENT par le Spawner sur le Serveur ET le Client
+# Elle reçoit les données qu'on lui passe (ici, un tableau [id, index])
+func _spawn_player_setup(data):
+	var peer_id = data[0]
+	var spawn_index = data[1]
+	
+	var player_scene = preload("res://scenes/player.tscn")
+	var new_player = player_scene.instantiate()
+	new_player.name = str(peer_id)
+	
+	# --- DEBUGGING ---
+	if spawn_points == null:
+		print("ERREUR CRITIQUE : Le nœud 'SpawnPoints' n'est pas trouvé par le script !")
+	else:
+		var points = spawn_points.get_children()
+		print("DEBUG : Nombre de markers trouvés : ", points.size())
+		
+		if points.size() > 0:
+			var target_point = points[spawn_index % points.size()]
+			new_player.global_transform = target_point.global_transform
+			print("SUCCÈS : Joueur ", peer_id, " placé sur ", target_point.name, " à la position ", target_point.global_position)
+		else:
+			print("ATTENTION : Le dossier 'SpawnPoints' est vide ! Pas de Marker3D dedans.")
+	# -----------------
+
+	return new_player
+
+# Fonction appelée uniquement par le SERVEUR pour déclencher le spawn
+func _spawn_player(peer_id: int):
+	# On calcule l'index de spawn uniquement sur le serveur
+	if not assigned_spawn_indices.has(peer_id):
+		assigned_spawn_indices[peer_id] = next_spawn_index
+		next_spawn_index += 1
+	
+	var index = assigned_spawn_indices[peer_id]
+	
+	# AU LIEU DE add_child, on demande au Spawner de faire le travail
+	# On lui passe les infos nécessaires : ID et numéro de siège
+	spawner.spawn([peer_id, index])
+
+# ============================================================================
+# GESTION CLASSIQUE
 # ============================================================================
 
 func _on_player_joined(peer_id: int):
-	"""Un nouveau joueur s'est connecté"""
-	if not NetworkManager.is_server():
-		return
-	
+	if not NetworkManager.is_server(): return
 	print("WORLD : Nouveau joueur ", peer_id, " -> Spawn")
 	_spawn_player(peer_id)
 
 func _on_player_left(peer_id: int):
-	"""Un joueur s'est déconnecté"""
-	if not NetworkManager.is_server():
-		return
-	
+	if not NetworkManager.is_server(): return
 	print("WORLD : Joueur ", peer_id, " déconnecté -> Suppression")
-	_remove_player(peer_id)
+	
+	# Avec le Spawner, effacer l'objet sur le serveur l'efface chez tout le monde
+	if player_container.has_node(str(peer_id)):
+		player_container.get_node(str(peer_id)).queue_free()
+	
+	if assigned_spawn_indices.has(peer_id):
+		assigned_spawn_indices.erase(peer_id)
 
 func _on_server_disconnected():
-	"""Le serveur s'est déconnecté (côté client)"""
 	print("WORLD : Serveur perdu, retour au lobby")
 	get_tree().change_scene_to_file("res://scenes/lobby.tscn")
-
-# ============================================================================
-# SPAWN / DESPAWN
-# ============================================================================
-
-func _spawn_player(peer_id: int):
-	"""Crée et positionne un joueur"""
-	var player_scene = preload("res://scenes/player.tscn")
-	var new_player = player_scene.instantiate()
-	
-	# Le nom du node = ID réseau (important pour le MultiplayerSpawner)
-	new_player.name = str(peer_id)
-	
-	# Ajout au container (synchronisé par le MultiplayerSpawner)
-	player_container.add_child(new_player, true)
-	
-	# Positionnement sur un point de spawn
-	_position_player_at_spawn(new_player)
-
-func _position_player_at_spawn(player: Node3D):
-	"""Positionne un joueur sur un point de spawn libre"""
-	var points = spawn_points.get_children()
-	
-	if points.size() > 0:
-		var index = player_container.get_child_count() - 1
-		var target_point = points[index % points.size()]
-		player.global_transform = target_point.global_transform
-	else:
-		print("WORLD : ERREUR - Aucun point de spawn !")
-		player.global_position = Vector3(0, 2, 0)
-
-func _remove_player(peer_id: int):
-	"""Supprime un joueur du monde"""
-	var player_node = player_container.get_node_or_null(str(peer_id))
-	if player_node:
-		player_node.queue_free()

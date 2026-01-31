@@ -28,7 +28,7 @@ shape = SubResource("BoxShape3D_aqk2v")
 debug_color = Color(0.7535472, 0.06253936, 3.85046e-07, 1)
 
 [node name="Table" type="MeshInstance3D" parent="LevelGeometry/StaticBody3D" unique_id=1402486741]
-transform = Transform3D(0.19995144, 0, 0.0044048545, 0, 0.2, 0, -0.0044048545, 0, 0.19995144, 0.05523325, 0.32046324, -0.03398188)
+transform = Transform3D(0.39990294, 0, 0.008809711, 0, 0.4, 0, -0.008809711, 0, 0.39990294, 0.055233248, -0.14848107, -0.033981882)
 mesh = ExtResource("2_fj7yv")
 
 [node name="Dealer" type="Node3D" parent="." unique_id=1347483840]
