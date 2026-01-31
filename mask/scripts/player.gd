@@ -1,4 +1,4 @@
-extends CharacterBody3D 
+extends CharacterBody3D
 
 @export var sensitivity = 0.003
 @onready var camera = $Head/Camera3D
@@ -23,7 +23,7 @@ func _ready():
 		print("PLAYER : Configuration de MON personnage (ID ", multiplayer.get_unique_id(), ")")
 		if camera: 
 			camera.make_current()
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	else:
 		# C'est le perso d'un AUTRE
 		print("PLAYER : Personnage d'un autre joueur détecté")
@@ -34,8 +34,17 @@ func _ready():
 
 func _unhandled_input(event):
 	if not is_local_player: return
-	
-	if event is InputEventMouseMotion:
+
+	# 1. Gestion du clic droit pour capturer/relâcher le curseur
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_RIGHT:
+			if event.pressed:
+				Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+			else:
+				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+	# 2. Rotation de la caméra (uniquement si la souris est capturée / clic droit maintenu)
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		rotate_y(-event.relative.x * sensitivity)
 		camera.rotate_x(-event.relative.y * sensitivity)
 		camera.rotation.x = clamp(camera.rotation.x, deg_to_rad(-80), deg_to_rad(80))
