@@ -2,46 +2,88 @@ extends Node3D
 
 @onready var action_ui = $UI/ActionButtons
 @onready var info_label = $UI/Label_Info
+@onready var stack_label = $UI/StackLabel
+@onready var pot_label = $UI/PotLabel # Assure-toi d'avoir ce Label dans l'UI
+@onready var call_label = $UI/ActionButtons/Label_ToCall # Nouveau Label à créer
 @onready var bet_input = $UI/ActionButtons/HBoxContainer/BetInput
 @onready var camera = $Camera3D
 
+var my_stack = 0
+var current_to_call = 0
+
 func _ready():
-	# Définit qui possède ce personnage
 	set_multiplayer_authority(name.to_int())
 
 	if is_multiplayer_authority():
 		action_ui.hide()
 		camera.current = true
-		info_label.text = "En attente du début de partie..."
+		info_label.text = "En attente..."
 		
-		# Connexion des boutons
 		$UI/ActionButtons/HBoxContainer/Btn_Miser.pressed.connect(_on_btn_miser_pressed)
 		$UI/ActionButtons/HBoxContainer/Btn_Coucher.pressed.connect(_on_btn_coucher_pressed)
 	else:
-		# On supprime l'UI des autres joueurs pour qu'elle n'apparaisse pas sur notre écran
 		$UI.queue_free()
 
-# --- Appelé par le Dealer (Serveur) ---
+# --- RPC APPELÉS PAR LE DEALER ---
+
+# Correction : Ajout du 2ème argument 'amount_to_call'
 @rpc("authority", "call_local", "reliable")
-func notify_turn(is_my_turn: bool):
-	if is_multiplayer_authority():
-		action_ui.visible = is_my_turn
-		info_label.text = "À VOUS DE JOUER !" if is_my_turn else "Le voisin réfléchit..."
+func notify_turn(is_my_turn: bool, amount_to_call: int = 0):
+	if not is_multiplayer_authority(): return
+
+	action_ui.visible = is_my_turn
+	current_to_call = amount_to_call
+	
+	if is_my_turn:
+		info_label.text = "À VOUS DE JOUER !"
+		
+		# Logique d'affichage du "Call"
+		if amount_to_call > 0:
+			call_label.text = "Mise à suivre : " + str(amount_to_call) + "$"
+			bet_input.value = amount_to_call # Pré-remplit le montant mini
+			bet_input.min_value = amount_to_call
+		else:
+			call_label.text = "Parole (Check)"
+			bet_input.value = 0
+			bet_input.min_value = 0
+	else:
+		info_label.text = "Le voisin réfléchit..."
 
 @rpc("authority", "call_remote", "reliable")
 func receive_cards(cards: Array):
 	print("J'ai reçu mes cartes : ", cards)
-	# TODO: Ici tu pourras instancier visuellement les cartes devant le joueur
+	# Instanciation visuelle à faire ici
 
-# --- Envoi vers le Dealer ---
+# Correction : Renommé 'update_stack' pour correspondre au Dealer
+@rpc("authority", "call_local", "reliable")
+func update_stack(new_amount: int):
+	if is_multiplayer_authority():
+		my_stack = new_amount
+		stack_label.text = "Argent : " + str(my_stack) + "$"
+		bet_input.max_value = my_stack
+
+# Correction : Renommé 'update_pot' pour correspondre au Dealer
+@rpc("authority", "call_local", "reliable")
+func update_pot(amount: int):
+	if is_multiplayer_authority():
+		pot_label.text = "POT : " + str(amount) + "$"
+
+# --- ACTIONS VERS LE DEALER ---
+
 func _on_btn_miser_pressed():
 	var amount = int(bet_input.value)
-	# Chemin absolu vers le nœud Dealer dans la scène World
-	var dealer = get_node("/root/World/Dealer") 
-	dealer.server_receive_action.rpc_id(1, "BET", amount)
-	action_ui.hide()
+	
+	# Sécurité : On ne peut pas miser moins que le Call, sauf si on fait Tapis
+	if amount < current_to_call and amount < my_stack:
+		print("Vous devez miser au moins : ", current_to_call)
+		return
 
-func _on_btn_coucher_pressed() -> void:
+	if amount <= my_stack:
+		var dealer = get_node("/root/World/Dealer")
+		dealer.server_receive_action.rpc_id(1, "BET", amount)
+		action_ui.hide()
+
+func _on_btn_coucher_pressed():
 	var dealer = get_node("/root/World/Dealer")
 	dealer.server_receive_action.rpc_id(1, "FOLD", 0)
 	action_ui.hide()
