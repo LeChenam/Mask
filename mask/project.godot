@@ -11,8 +11,13 @@ config_version=5
 [application]
 
 config/name="Mask"
+run/main_scene="uid://hdovfsv3f3dy"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
+
+[autoload]
+
+World="*uid://dcg0aprrlldl0"
 
 [display]
 

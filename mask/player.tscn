@@ -1,10 +1,16 @@
 [gd_scene format=3 uid="uid://bxs7aak1prc1q"]
 
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_sh265"]
+
+[sub_resource type="Skin" id="Skin_4flbx"]
+
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_sh265"]
 
 [node name="Player" type="Node3D" unique_id=1196476844]
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=2065440034]
+mesh = SubResource("CapsuleMesh_sh265")
+skin = SubResource("Skin_4flbx")
 
 [node name="Label" type="Label" parent="." unique_id=4765064]
 offset_right = 40.0

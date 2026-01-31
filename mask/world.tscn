@@ -1,6 +1,9 @@
 [gd_scene format=3 uid="uid://dnuqhjie2j5wk"]
 
+[ext_resource type="Script" uid="uid://dcg0aprrlldl0" path="res://scripts/world.gd" id="1_f3sb7"]
+
 [node name="World" type="Node3D" unique_id=584979016]
+script = ExtResource("1_f3sb7")
 
 [node name="LevelGeometry" type="Node3D" parent="." unique_id=1135009950]
 
