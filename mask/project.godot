@@ -13,12 +13,14 @@ config_version=5
 config/name="Mask"
 run/main_scene="uid://hdovfsv3f3dy"
 config/features=PackedStringArray("4.6", "Forward Plus")
+run/max_fps=144
 config/icon="res://icon.svg"
 
 [display]
 
-window/size/viewport_width=1920
-window/size/viewport_height=1080
+window/size/viewport_width=640
+window/size/viewport_height=480
+window/size/borderless=true
 window/stretch/mode="canvas_items"
 
 [input]

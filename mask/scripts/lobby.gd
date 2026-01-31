@@ -3,31 +3,30 @@ extends Control
 const PORT = 42069
 const ADDRESS = "127.0.0.1"
 
-func _on_host_button_pressed() -> void:
-	# 1. On crée le serveur DIRECTEMENT ici
+func _ready() -> void:
+	# On tente de créer le serveur
 	var peer = ENetMultiplayerPeer.new()
 	var error = peer.create_server(PORT)
 	
-	if error != OK:
-		print("Erreur création serveur: " + str(error))
-		return
-		
-	multiplayer.multiplayer_peer = peer
-	print("Serveur lancé ! Chargement du monde...")
-	
-	# 2. Maintenant on charge la VRAIE scène World qui contient les noeuds
-	get_tree().change_scene_to_file("res://world.tscn")
+	if error == OK:
+		multiplayer.multiplayer_peer = peer
+		print("SERVEUR : Je suis l'hôte. Lancement du monde...")
+		# On attend un tout petit peu avant de changer de scène
+		await get_tree().create_timer(0.1).timeout
+		get_tree().change_scene_to_file("res://world.tscn")
+	else:
+		# L'erreur "Couldn't create host" vient d'ici, c'est normal si 
+		# un serveur tourne déjà sur ton PC.
+		print("MODE CLIENT : Serveur déjà présent, prêt à rejoindre.")
 
 func _on_join_button_pressed() -> void:
-	# 1. On crée le client DIRECTEMENT ici
 	var peer = ENetMultiplayerPeer.new()
 	var error = peer.create_client(ADDRESS, PORT)
 	
 	if error != OK:
-		print("Erreur connexion client")
+		print("ERREUR : Impossible de contacter le serveur.")
 		return
 		
 	multiplayer.multiplayer_peer = peer
-	print("Connexion en cours...")
-	
+	print("CLIENT : Connexion en cours...")
 	get_tree().change_scene_to_file("res://world.tscn")
