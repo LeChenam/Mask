@@ -78,7 +78,7 @@ offset_top = 128.0
 offset_right = -147.00002
 offset_bottom = 136.0
 
-[node name="PlayerContainer" type="Node" parent="." unique_id=183348286]
+[node name="PlayerContainer" type="Node3D" parent="." unique_id=172900509]
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=2128364230]
 transform = Transform3D(0.9870832, 0, 0.16020852, 0, 1, 0, -0.16020852, 0, 0.9870832, -0.96711016, 2.646225, 6.060768)
