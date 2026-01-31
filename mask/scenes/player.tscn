@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dk4x0ljcy3eud"]
 
-[ext_resource type="Script" uid="uid://dd8vta5e4evmo" path="res://scripts/player.gd" id="1_4flbx"]
+[ext_resource type="Script" uid="uid://devddoq4aq30w" path="res://scripts/player.gd" id="1_4flbx"]
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_sh265"]
 properties/0/path = NodePath(".:position")
@@ -39,3 +39,56 @@ offset_bottom = 23.0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=494969114]
 mesh = SubResource("CapsuleMesh_onrkg")
+
+[node name="UI" type="CanvasLayer" parent="." unique_id=1868016129]
+
+[node name="Label_Info" type="Label" parent="UI" unique_id=890197557]
+offset_left = 574.0
+offset_top = 8.0
+offset_right = 1226.0
+offset_bottom = 56.0
+horizontal_alignment = 1
+
+[node name="StackLabel" type="Label" parent="UI" unique_id=2048909616]
+offset_left = 2.0
+offset_top = 836.0
+offset_right = 258.0
+offset_bottom = 986.0
+text = "Vous avez :"
+
+[node name="PotLabel" type="Label" parent="UI" unique_id=1275072013]
+offset_left = 778.0
+offset_top = 149.0
+offset_right = 1116.0
+offset_bottom = 249.0
+text = "Le pot est de :"
+horizontal_alignment = 1
+
+[node name="ActionButtons" type="VBoxContainer" parent="UI" unique_id=362554331]
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_left = 751.0
+offset_top = 833.0
+offset_right = 1371.0
+offset_bottom = -116.0
+grow_vertical = 2
+
+[node name="Label_ToCall" type="Label" parent="UI/ActionButtons" unique_id=505186256]
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="HBoxContainer" type="HBoxContainer" parent="UI/ActionButtons" unique_id=535804999]
+layout_mode = 2
+alignment = 1
+
+[node name="BetInput" type="LineEdit" parent="UI/ActionButtons/HBoxContainer" unique_id=2056208808]
+layout_mode = 2
+placeholder_text = "$"
+
+[node name="Btn_Miser" type="Button" parent="UI/ActionButtons/HBoxContainer" unique_id=395080126]
+layout_mode = 2
+text = "Miser"
+
+[node name="Btn_Coucher" type="Button" parent="UI/ActionButtons/HBoxContainer" unique_id=449399618]
+layout_mode = 2
+text = "Se coucher"
