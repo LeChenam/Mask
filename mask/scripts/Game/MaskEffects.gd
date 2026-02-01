@@ -8,7 +8,7 @@ class_name MaskEffects
 # CONSTANTES DE JEU
 # ============================================================================
 
-const MASK_PROBABILITY = 0.33  # 33% chance qu'une tête soit masquée
+const MASK_PROBABILITY = 1.0  # 100% chance qu'une tête soit masquée (TEST)
 const STEAL_AMOUNT = 50        # Jetons volés par la Dame Rouge
 const MASK_SHOP_COST = 100     # Coût d'un masque dans le shop
 const BLIND_MULTIPLIER = 1.5   # Multiplicateur des blinds par tour

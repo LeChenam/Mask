@@ -204,6 +204,101 @@ func _play_player_idle_animation():
 # BOUTON START (Uniquement pour le joueur 1 au début)
 # ==============================================================================
 
+# --- VISUAL FX & HORROR ---
+
+@rpc("any_peer", "call_local", "reliable")
+func show_revealed_card_ui(target_id: int, card_id: int):
+	"""Affiche une carte révélée (effet Observateur)"""
+	print("👁️ Carte révélée : ", card_id, " de ", target_id)
+	
+	# Créer une UI temporaire
+	var overlay = PanelContainer.new()
+	overlay.name = "RevealOverlay"
+	
+	# Style sombre
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0, 0, 0, 0.9)
+	style.border_color = Color(1, 0, 0, 1) # Bordure rouge
+	style.border_width_left = 4
+	style.border_width_right = 4
+	style.border_width_top = 4
+	style.border_width_bottom = 4
+	overlay.add_theme_stylebox_override("panel", style)
+	
+	overlay.custom_minimum_size = Vector2(250, 350)
+	# Position centrale (approximative)
+	overlay.position = Vector2(400, 200) 
+	
+	var vbox = VBoxContainer.new()
+	overlay.add_child(vbox)
+	
+	# Titre
+	var lbl = Label.new()
+	lbl.text = "JE TE VOIS..."
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.add_theme_color_override("font_color", Color(1, 0, 0))
+	lbl.add_theme_font_size_override("font_size", 24)
+	vbox.add_child(lbl)
+	
+	# Nom du joueur
+	# Nom du joueur
+	var name_lbl = Label.new()
+	var p_name = "Joueur " + str(target_id)
+	var neighbor = get_parent().get_node_or_null(str(target_id))
+	if neighbor and "player_pseudo" in neighbor:
+		p_name = neighbor.player_pseudo
+		
+	name_lbl.text = "Carte de " + p_name
+	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(name_lbl)
+	
+	# Texture Carte (approximative ou chargée)
+	var tex_rect = TextureRect.new()
+	tex_rect.custom_minimum_size = Vector2(140, 200)
+	tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	
+	# Charger texture via logique card.gd (simplifiée ici)
+	var rank_index = card_id % 13
+	var suit_index = int(float(card_id) / 13)
+	var suits = ["pique", "coeur", "carreau", "trefle"]
+	var suit_prefixes = ["pique", "coeurs", "carreau", "trefle"]
+	var ranks = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "valet", "reine", "roi", "as"]
+	var path = "res://assets/cartes_sprite/" + suits[suit_index] + "/" + suit_prefixes[suit_index] + "_" + ranks[rank_index] + ".png"
+	if FileAccess.file_exists(path):
+		tex_rect.texture = load(path)
+	
+	vbox.add_child(tex_rect)
+	
+	$UI.add_child(overlay)
+	
+	# Auto-destruction
+	await get_tree().create_timer(4.0).timeout
+	if is_instance_valid(overlay):
+		overlay.queue_free()
+
+@rpc("any_peer", "call_local", "reliable")
+func trigger_horror_effect(effect_name: String):
+	"""Déclenche un effet d'horreur visuel/sonore"""
+	match effect_name:
+		"jack_red_eye":
+			# Flash rouge + son
+			var flash = ColorRect.new()
+			flash.color = Color(1, 0, 0, 0.3)
+			flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			$UI.add_child(flash)
+			
+			var lbl = Label.new()
+			lbl.text = "👁️"
+			lbl.add_theme_font_size_override("font_size", 100)
+			lbl.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+			flash.add_child(lbl)
+			
+			# Animation simple
+			var tween = create_tween()
+			tween.tween_property(flash, "modulate:a", 0.0, 2.0)
+			tween.tween_callback(flash.queue_free)
+
 func _create_start_button():
 	"""Crée le bouton de démarrage de partie"""
 	if not has_node("UI"):
@@ -670,19 +765,26 @@ func _show_target_selection_ui(card_id: int):
 	desc.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
 	vbox.add_child(desc)
 	
-	# Boutons pour chaque joueur (obtenir la liste via le dealer)
-	var dealer = get_node_or_null("/root/World/Dealer")
-	if dealer:
-		var my_id = multiplayer.get_unique_id()
-		var players = dealer.all_players if dealer.has_method("get") else []
+	# Boutons pour chaque joueur (basé sur les noeuds présents = fiable)
+	var my_id = multiplayer.get_unique_id()
+	
+	# Parcourir les voisins dans PlayerContainer
+	for neighbor in get_parent().get_children():
+		if neighbor.name == str(my_id): continue # Skip self
+		if not neighbor.has_method("set_player_name"): continue # Skip non-players
 		
-		for player_id in players:
-			if player_id != my_id:
-				var btn = Button.new()
-				btn.text = "👤 Joueur " + str(player_id)
-				btn.custom_minimum_size = Vector2(150, 35)
-				btn.pressed.connect(_on_target_selected.bind(player_id))
-				vbox.add_child(btn)
+		var pid = neighbor.name.to_int()
+		var pseudo = "Joueur " + str(pid)
+		
+		# Récupérer le pseudo si disponible
+		if "player_pseudo" in neighbor:
+			pseudo = neighbor.player_pseudo
+			
+		var btn = Button.new()
+		btn.text = "👤 " + pseudo
+		btn.custom_minimum_size = Vector2(150, 35)
+		btn.pressed.connect(_on_target_selected.bind(pid))
+		vbox.add_child(btn)
 	
 	# Bouton Annuler
 	var cancel_btn = Button.new()

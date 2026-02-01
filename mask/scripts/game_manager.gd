@@ -290,6 +290,10 @@ func register_player_name(pseudo: String):
 	if player_node and player_node.has_method("set_player_name"):
 		player_node.set_player_name.rpc(pseudo)
 
+func _get_player_name(peer_id: int) -> String:
+	"""Retourne le pseudo du joueur ou 'Joueur ID' par défaut"""
+	return player_names.get(peer_id, "Joueur " + str(peer_id))
+
 @rpc("any_peer", "call_local", "reliable")
 func request_start_game():
 	_initialize_players()
@@ -634,7 +638,15 @@ func _table_effect_black_king():
 func _reveal_player_card_to_all(player_id: int, card_id: int):
 	"""Révèle une carte d'un joueur à tout le monde"""
 	print("👁️ Joueur ", player_id, " montre: ", _card_to_string(card_id))
-	# Visual feedback pourrait être ajouté ici
+	# Visual feedback GLOBAL
+	for peer_id in active_players:
+		var player_node = get_node("../PlayerContainer/" + str(peer_id))
+		# On envoie l'info uniquement au client concerné sur SON noeud joueur (qui a l'UI)
+		if player_node:
+			if player_node.has_method("show_revealed_card_ui"):
+				player_node.show_revealed_card_ui.rpc_id(peer_id, player_id, card_id)
+			if player_node.has_method("trigger_horror_effect"):
+				player_node.trigger_horror_effect.rpc_id(peer_id, "jack_red_eye")
 
 # ============================================================================
 # EFFETS DEPUIS LA MAIN (activés par clic du joueur)
@@ -743,8 +755,14 @@ func _hand_effect_red_jack(activator_id: int, target_id: int = -1):
 		var card_str = _card_to_string(revealed_card)
 		
 		# Envoyer la carte révélée uniquement à l'activateur
-		_send_effect_result(activator_id, "👁️ Joueur " + str(target_id) + " a: " + card_str)
-		_announce_to_all("👁️ Joueur " + str(activator_id) + " a inspecté une carte de Joueur " + str(target_id))
+		# _send_effect_result(activator_id, "👁️ Joueur " + str(target_id) + " a: " + card_str)
+		
+		var activator_node = get_node("../PlayerContainer/" + str(activator_id))
+		if activator_node:
+			activator_node.show_revealed_card_ui.rpc_id(activator_id, target_id, revealed_card)
+			activator_node.trigger_horror_effect.rpc_id(activator_id, "jack_red_eye")
+			
+		_announce_to_all("👁️ " + _get_player_name(activator_id) + " a inspecté une carte de " + _get_player_name(target_id))
 
 func _hand_effect_red_queen(activator_id: int, target_id: int = -1):
 	"""Dame Rouge - Voler 50 jetons à un joueur"""
@@ -772,9 +790,9 @@ func _hand_effect_red_queen(activator_id: int, target_id: int = -1):
 	_update_player_display(target_id)
 	_update_player_display(activator_id)
 	
-	var msg = "🩸 Vous avez volé " + str(steal_amount) + "$ à Joueur " + str(target_id)
+	var msg = "🩸 Vous avez volé " + str(steal_amount) + "$ à " + _get_player_name(target_id)
 	_send_effect_result(activator_id, msg)
-	_announce_to_all("🩸 Joueur " + str(activator_id) + " vole " + str(steal_amount) + "$ à Joueur " + str(target_id))
+	_announce_to_all("🩸 " + _get_player_name(activator_id) + " vole " + str(steal_amount) + "$ à " + _get_player_name(target_id))
 
 func _hand_effect_red_king(activator_id: int, target_id: int = -1):
 	"""Roi Rouge - Forcer un pacte de partage des gains"""
@@ -797,9 +815,9 @@ func _hand_effect_red_king(activator_id: int, target_id: int = -1):
 	
 	active_pacts.append({"from": activator_id, "to": target_id})
 	
-	var msg = "🤝 Pacte forcé avec Joueur " + str(target_id) + " - Gains partagés!"
+	var msg = "🤝 Pacte forcé avec " + _get_player_name(target_id) + " - Gains partagés!"
 	_send_effect_result(activator_id, msg)
-	_announce_to_all("🤝 PACTE: Joueurs " + str(activator_id) + " et " + str(target_id) + " partagent les gains!")
+	_announce_to_all("🤝 PACTE: " + _get_player_name(activator_id) + " et " + _get_player_name(target_id) + " partagent les gains!")
 
 # --- EFFETS DE MAIN NOIRS ---
 
@@ -824,9 +842,8 @@ func _hand_effect_black_jack(activator_id: int):
 			var new_masked = [masked_cards.get(new_cards[0], false), masked_cards.get(new_cards[1], false)]
 			player_node.receive_cards_masked.rpc_id(activator_id, new_cards, new_masked)
 			
-			var msg = "🌀 Carte échangée! Nouvelle carte: " + _card_to_string(new_card)
-			_send_effect_result(activator_id, msg)
-			_announce_to_all("🌀 Joueur " + str(activator_id) + " a échangé une carte!")
+			_send_effect_result(activator_id, "🌀 Carte échangée! Nouvelle carte: " + _card_to_string(new_card))
+			_announce_to_all("🌀 " + _get_player_name(activator_id) + " a échangé une carte!")
 	else:
 		_send_effect_result(activator_id, "❌ Le deck est vide!")
 
@@ -858,8 +875,8 @@ func _hand_effect_black_queen(activator_id: int, target_id: int = -1):
 				highest_card = card
 		
 		var card_str = _card_to_string(highest_card)
-		_send_effect_result(activator_id, "⚖️ Joueur " + str(target_id) + " a comme carte haute: " + card_str)
-		_announce_to_all("⚖️ Joueur " + str(target_id) + " révèle sa carte haute: " + card_str)
+		_send_effect_result(activator_id, "⚖️ " + _get_player_name(target_id) + " a comme carte haute: " + card_str)
+		_announce_to_all("⚖️ " + _get_player_name(target_id) + " révèle sa carte haute: " + card_str)
 
 func _hand_effect_black_king(activator_id: int, target_id: int = -1):
 	"""Roi Noir - Aveugler un joueur (ne voit plus les cartes communes)"""
@@ -886,17 +903,18 @@ func _hand_effect_black_king(activator_id: int, target_id: int = -1):
 	if player_node.has_method("set_blinded"):
 		player_node.set_blinded.rpc_id(target_id, true)
 	
-	_send_effect_result(activator_id, "🌑 Joueur " + str(target_id) + " est aveuglé!")
-	_announce_to_all("🌑 Joueur " + str(target_id) + " a été AVEUGLÉ!")
+	_send_effect_result(activator_id, "🌑 " + _get_player_name(target_id) + " est aveuglé!")
+	_announce_to_all("🌑 " + _get_player_name(target_id) + " a été AVEUGLÉ!")
 
 func _check_voile_protection(target_id: int, attacker_id: int) -> bool:
 	"""Vérifie si la cible a le Masque Voilé actif"""
-	var has_voile = player_masks.get(target_id, MaskEffects.PlayerMask.NONE) == MaskEffects.PlayerMask.VOILE
+	var mask = player_masks.get(target_id, MaskEffects.PlayerMask.NONE)
 	var already_used = player_protection_used.get(target_id, false)
 	
-	if has_voile and not already_used:
-		player_protection_used[target_id] = true
-		_announce_to_all("🛡️ Player " + str(target_id) + "'s Veiled Mask blocks the effect!")
+	if mask == MaskEffects.PlayerMask.VOILE and not already_used:
+		# Le Voile protège du PREMIER effet de tête ciblé
+		player_protection_used[target_id] = true # Marquer comme utilisé
+		_announce_to_all("🛡️ Le Masque Voilé de " + _get_player_name(target_id) + " bloque l'effet!")
 		print("   🛡️ Le Masque Voilé protège le joueur ", target_id)
 		return true
 	
@@ -1441,8 +1459,9 @@ func _showdown():
 		_update_player_display(winner_id)
 	
 	# Annoncer le(s) gagnant(s)
+	# Annoncer le(s) gagnant(s)
 	if winners.size() == 1:
-		_announce_to_all("🏆 Joueur " + str(winners[0]) + " gagne " + str(int(winnings)) + "$ !")
+		_announce_to_all("🏆 " + _get_player_name(winners[0]) + " gagne " + str(int(winnings)) + "$ !")
 	else:
 		_announce_to_all("🏆 Égalité ! Pot partagé entre " + str(winners.size()) + " joueurs")
 	
