@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://dcg0aprrlldl0" path="res://scripts/world.gd" id="1_f3sb7"]
 [ext_resource type="ArrayMesh" uid="uid://ck1apr6cko8va" path="res://assets/objects/table.obj" id="2_fj7yv"]
 [ext_resource type="Script" uid="uid://dqrhi07a0mk1n" path="res://scripts/game_manager.gd" id="3_4wyf3"]
+[ext_resource type="PackedScene" uid="uid://d1poqqhfew254" path="res://assets/rooms/horror_soviet_room.glb" id="3_k0juu"]
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_tlwt5"]
 
@@ -29,8 +30,14 @@ shape = SubResource("BoxShape3D_aqk2v")
 debug_color = Color(0.7535472, 0.06253936, 3.85046e-07, 1)
 
 [node name="Table" type="MeshInstance3D" parent="LevelGeometry/StaticBody3D" unique_id=1402486741]
-transform = Transform3D(0.4998787, 0, 0.011012139, 0, 0.5, 0, -0.011012139, 0, 0.4998787, 0.055233248, -0.14848107, -0.033981882)
+transform = Transform3D(0.9997574, 0, 0.022024281, 0, 1, 0, -0.022024281, 0, 0.9997574, 0.055233248, -0.14848107, -0.033981882)
 mesh = ExtResource("2_fj7yv")
+
+[node name="Sketchfab_Scene" parent="LevelGeometry" unique_id=1425050797 instance=ExtResource("3_k0juu")]
+transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, 3.5313036, 0.008198023, -0.3542447)
+
+[node name="Sketchfab_Scene2" parent="LevelGeometry" unique_id=399510129 instance=ExtResource("3_k0juu")]
+transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 1.9314685, -0.11912143, 0.7065351)
 
 [node name="Dealer" type="Node3D" parent="." unique_id=1347483840]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.8530696, 0.8, 0)
@@ -39,22 +46,22 @@ script = ExtResource("3_4wyf3")
 [node name="SpawnPoints" type="Node3D" parent="." unique_id=329985917]
 
 [node name="Player1" type="Marker3D" parent="SpawnPoints" unique_id=1009201828]
-transform = Transform3D(1.0000001, 0, 0, 0, 1, 0, 0, 0, 1.0000001, 1.189, 0.3, -0.001)
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 1.189, 0.86, -0.001)
 
 [node name="Player2" type="Marker3D" parent="SpawnPoints" unique_id=1556737425]
-transform = Transform3D(0.94615877, 0, 0.32370275, 0, 1, 0, -0.32370275, 0, 0.94615877, 1.094, 0.3, -1.052)
+transform = Transform3D(0.4730794, 0, 0.1618514, 0, 0.5, 0, -0.1618514, 0, 0.4730794, 1.094, 0.86, -1.052)
 
 [node name="Player3" type="Marker3D" parent="SpawnPoints" unique_id=98137635]
-transform = Transform3D(0.92821336, 0, -0.37204838, 0, 1, 0, 0.37204838, 0, 0.92821336, 1.027, 0.3, 1.051)
+transform = Transform3D(0.46410668, 0, -0.18602417, 0, 0.5, 0, 0.18602417, 0, 0.46410668, 1.027, 0.86, 1.051)
 
 [node name="Player4" type="Marker3D" parent="SpawnPoints" unique_id=1076175584]
-transform = Transform3D(0.5085155, 0, 0.8610528, 0, 1, 0, -0.8610528, 0, 0.5085155, 0.364, 0.3, -1.746)
+transform = Transform3D(0.25425774, 0, 0.4305264, 0, 0.5, 0, -0.4305264, 0, 0.25425774, 0.364, 0.86, -1.746)
 
 [node name="Player5" type="Marker3D" parent="SpawnPoints" unique_id=1282564919]
-transform = Transform3D(0.41273877, 0, -0.91084945, 0, 1, 0, 0.91084945, 0, 0.41273877, 0.322, 0.3, 1.819)
+transform = Transform3D(0.20636939, 0, -0.45542473, 0, 0.5, 0, 0.45542473, 0, 0.20636939, 0.322, 0.86, 1.819)
 
 [node name="CardContainer" type="Node3D" parent="." unique_id=1925936243]
-transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 0.07547808, 0.57853305, -0.031809226)
+transform = Transform3D(-6.556708e-08, 0.5130302, 1.409539, 0, 1.409539, -0.5130302, -1.5, -2.2425262e-08, -6.16129e-08, -0.05854726, 0.9052402, -0.031809226)
 
 [node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="." unique_id=852467706]
 _spawnable_scenes = PackedStringArray("uid://dk4x0ljcy3eud")
@@ -63,4 +70,12 @@ spawn_path = NodePath("../PlayerContainer")
 [node name="PlayerContainer" type="Node3D" parent="." unique_id=172900509]
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=2128364230]
-transform = Transform3D(0.99919933, 0.036071002, -0.017309569, -0.018328482, 0.797255, 0.60336435, 0.0355641, -0.60256404, 0.79727775, -0.96711016, 10.976715, 14.712596)
+transform = Transform3D(0.0039395704, -0.17360349, 0.9848077, -0.022342663, 0.9845543, 0.17364818, -0.9997426, -0.022687327, -4.304731e-08, 18.214582, 10.976715, -1.5731602)
+layers = 3
+light_color = Color(0.75686276, 0, 0, 1)
+light_energy = 0.937
+shadow_enabled = true
+shadow_bias = 0.155
+shadow_normal_bias = 3.31
+shadow_blur = 1.601
+sky_mode = 1
