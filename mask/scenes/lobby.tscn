@@ -38,7 +38,7 @@ layout_mode = 2
 
 [node name="Title" type="Label" parent="CenterContainer/VBoxContainer" unique_id=1487460493]
 layout_mode = 2
-text = "NOM DU JEU"
+text = "MASKARD"
 label_settings = SubResource("LabelSettings_ll2xe")
 horizontal_alignment = 1
 vertical_alignment = 1
