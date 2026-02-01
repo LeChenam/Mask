@@ -24,6 +24,7 @@ var is_searching := false
 var is_hosting := false
 var current_broadcast_ip := "255.255.255.255"
 var my_local_ips: Array = []
+var player_name: String = "Player"
 
 # --- UDP ---
 var udp := PacketPeerUDP.new()

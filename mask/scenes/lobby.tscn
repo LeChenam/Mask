@@ -49,7 +49,7 @@ layout_mode = 2
 
 [node name="NameInput" type="LineEdit" parent="CenterContainer/VBoxContainer" unique_id=2069975916]
 layout_mode = 2
-placeholder_text = "Nommez votre partie"
+placeholder_text = "Entrez votre pseudo"
 alignment = 1
 
 [node name="HostButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=860039606]

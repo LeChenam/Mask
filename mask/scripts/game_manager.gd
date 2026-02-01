@@ -1,12 +1,23 @@
 extends Node3D
 # ============================================================================
-# GAME MANAGER - Gestion complète d'une partie de poker Texas Hold'em
+# GAME MANAGER - MASKARD - Poker Horror avec système de masques
 # ============================================================================
 # À attacher au nœud Dealer dans world.tscn
 
 const HandEvaluator = preload("res://scripts/Game/HandEvaluator.gd")
+const MaskEffects = preload("res://scripts/Game/MaskEffects.gd")
 
-enum GamePhase { WAITING, PRE_FLOP, FLOP, TURN, RIVER, SHOWDOWN }
+# --- PHASES DE JEU MASKARD ---
+enum GamePhase { 
+	WAITING,
+	DEALER_MASK_ANNOUNCE,  # Annonce du masque du croupier
+	SHOP_PHASE,            # Phase d'achat de masques
+	PRE_FLOP, 
+	FLOP, 
+	TURN, 
+	RIVER, 
+	SHOWDOWN 
+}
 var current_phase = GamePhase.WAITING
 
 # --- DECK ET CARTES ---
@@ -21,8 +32,10 @@ var player_hands = {}      # {peer_id: [card1, card2]}
 var player_stacks = {}     # {peer_id: stack_amount}
 
 # --- BLINDS & DEALER ---
-const SMALL_BLIND = 10
-const BIG_BLIND = 20
+const INITIAL_SMALL_BLIND = 10
+const INITIAL_BIG_BLIND = 20
+var current_small_blind = INITIAL_SMALL_BLIND
+var current_big_blind = INITIAL_BIG_BLIND
 var dealer_button_index = 0  # Position du bouton dealer
 
 # --- MISES ---
@@ -30,7 +43,8 @@ var pot = 0
 var side_pots = []         # Pour gérer les all-ins multiples (optionnel pour v1)
 var current_bets = {}      # {peer_id: montant_misé_ce_TOUR}
 var highest_bet = 0        # Plus grosse mise de ce tour
-var min_raise = BIG_BLIND  # Relance minimum
+var min_raise = INITIAL_BIG_BLIND  # Relance minimum
+var bet_multiplier = 1.0   # Modifié par le masque de l'Usurier
 
 # --- TOUR DE PAROLE ---
 var current_player_index = 0
@@ -41,13 +55,55 @@ var action_count = 0
 var game_started = false
 var waiting_for_player_action = false
 
+# ============================================================================
+# SYSTÈME MASKARD
+# ============================================================================
+var current_round_number = 0
+
+# --- MASQUE DU CROUPIER ---
+var dealer_current_mask: int = MaskEffects.DealerMask.NONE
+var fold_disabled = false      # Masque du Geôlier
+var community_hidden = false   # Masque de l'Aveugle
+
+# --- MASQUES DES JOUEURS ---
+var player_masks = {}          # {peer_id: MaskEffects.PlayerMask}
+var player_last_masks = {}     # {peer_id: MaskEffects.PlayerMask} - pour éviter re-achat
+var player_protection_used = {} # {peer_id: bool} - Masque Voilé utilisé
+
+# --- CARTES MASQUÉES ---
+var masked_cards = {}          # {card_id: bool} - quelles cartes sont masquées
+var player_masked_cards = {}   # {peer_id: [masked_card_ids]}
+
+# --- EFFETS ACTIFS ---
+var active_pacts = []          # [{from: peer_id, to: peer_id}] - Pactes du Roi Rouge
+var players_blinded = []       # [peer_id] - Joueurs aveuglés par le Roi Noir
+
+# --- TIMER & TÉNÈBRES (Black King Table Effect) ---
+var turn_timer: float = 0.0
+var timer_active: bool = false
+var current_turn_duration: float = 30.0  # Durée standard d'un tour
+var darkness_active: bool = false        # Effet Ténèbres Absolues
+
+# --- SHOP SYNC ---
+signal shop_phase_completed
+var finished_shop_players = []  # Liste des joueurs ayant fini le shop
+
+# --- DATA JOUEURS & EFFETS (Single Use) ---
+var player_names = {}          # {peer_id: "Pseudo"}
+var used_hand_effects = {}     # {peer_id: [card_id]} - Cartes déjà utilisées ce tour
 
 # ==============================================================================
 # INITIALISATION
 # ==============================================================================
 
 func _ready():
-	if not multiplayer.is_server():
+	# Enregistrer le nom (Client & Serveur)
+	await get_tree().create_timer(0.5).timeout # Attendre un peu que tout soit prêt
+	
+	if multiplayer.is_server():
+		register_player_name(NetworkManager.player_name)
+	else:
+		register_player_name.rpc_id(1, NetworkManager.player_name)
 		return
 
 	await get_tree().create_timer(0.5).timeout
@@ -139,6 +195,62 @@ func _initialize_players():
 	else:
 		print("⚠ Pas assez de joueurs (", all_players.size(), "/2 min)")
 
+func _process(delta):
+	"""Gestion du Timer de tour"""
+	if not multiplayer.is_server() or not timer_active:
+		return
+	
+	turn_timer -= delta
+	
+	# Sync le timer avec les clients chaque seconde (arrondi)
+	if int(turn_timer + delta) != int(turn_timer):
+		_sync_timer_to_all()
+	
+	if turn_timer <= 0:
+		timer_active = false
+		_handle_timeout()
+
+func _reset_timer():
+	"""Réinitialise le timer pour le joueur actuel"""
+	turn_timer = current_turn_duration
+	timer_active = true
+	_sync_timer_to_all()
+	print("⏳ Timer démarré: ", current_turn_duration, "s")
+
+func _stop_timer():
+	"""Arrête le timer"""
+	timer_active = false
+	turn_timer = 0
+	_sync_timer_to_all()
+
+func _handle_timeout():
+	"""Gère la fin du temps imparti"""
+	print("⌛ Temps écoulé pour joueur ", current_player_index)
+	# Si peut check, check. Sinon fold.
+	if current_player_index < active_players.size():
+		var current_player = active_players[current_player_index]
+		
+		# Auto-action
+		var to_call = highest_bet - current_bets.get(current_player, 0)
+		if to_call == 0:
+			_execute_player_action(current_player, "CHECK", 0)
+		else:
+			# Vérifier si Geôlier empêche le fold
+			if dealer_current_mask == MaskEffects.DealerMask.GEOLIER:
+				# Si peut pas fold, call auto (si a les sous) ou all-in
+				var stack = player_stacks[current_player]
+				var amount = min(stack, to_call)
+				_execute_player_action(current_player, "CALL", amount)
+			else:
+				_execute_player_action(current_player, "FOLD", 0)
+
+func _sync_timer_to_all():
+	"""Envoie le temps restant à tous les joueurs"""
+	for peer_id in all_players:
+		var player_node = get_node_or_null("../PlayerContainer/" + str(peer_id))
+		if player_node and player_node.has_method("update_timer"):
+			player_node.update_timer.rpc(int(ceil(turn_timer)))
+
 func can_start_game() -> bool:
 	return all_players.size() >= 2 and all_players.size() <= 5
 
@@ -159,6 +271,20 @@ func _play_idle_animations():
 # ==============================================================================
 # DÉMARRAGE DE LA PARTIE (Appelé par le premier joueur qui clique START)
 # ==============================================================================
+
+@rpc("any_peer", "call_local", "reliable")
+func register_player_name(pseudo: String):
+	"""Enregistre le pseudo d'un joueur"""
+	var sender_id = multiplayer.get_remote_sender_id()
+	if sender_id == 0: sender_id = 1
+	
+	player_names[sender_id] = pseudo
+	print("👤 Joueur ", sender_id, " enregistré sous le nom : ", pseudo)
+	
+	# Sync name to UI (si le joueur existe déjà)
+	var player_node = get_node_or_null("../PlayerContainer/" + str(sender_id))
+	if player_node and player_node.has_method("set_player_name"):
+		player_node.set_player_name.rpc(pseudo)
 
 @rpc("any_peer", "call_local", "reliable")
 func request_start_game():
@@ -193,13 +319,11 @@ func request_start_game():
 # ==============================================================================
 
 func start_new_hand():
-	"""Démarre une nouvelle main de poker"""
+	"""Démarre une nouvelle main de poker MASKARD"""
 	if not multiplayer.is_server():
 		return
 	
-	print("\n┌─────────────────────────────┐")
-	print("│   NOUVELLE MAIN - PRE-FLOP  │")
-	print("└─────────────────────────────┘")
+	current_round_number += 1
 	
 	_broadcast_sound("shuffle", 0.75)
 	await get_tree().create_timer(0.5).timeout
@@ -212,6 +336,20 @@ func start_new_hand():
 	player_hands.clear()
 	folded_players.clear()
 	active_players = all_players.duplicate()
+	masked_cards.clear()
+	player_masked_cards.clear()
+	active_pacts.clear()
+	players_blinded.clear()
+	used_hand_effects.clear()  # Reset des effets utilisés
+	
+	# Reset des effets de masques de croupier
+	bet_multiplier = 1.0
+	fold_disabled = false
+	community_hidden = false
+	
+	# Reset protection Voilé pour chaque joueur
+	for peer_id in all_players:
+		player_protection_used[peer_id] = false
 	
 	# Création du deck
 	deck = range(52)
@@ -220,18 +358,582 @@ func start_new_hand():
 	# Avancer le bouton dealer
 	dealer_button_index = (dealer_button_index + 1) % all_players.size()
 	
-	# Distribution des cartes
+	# ======= PHASES MASKARD =======
+	
+	# Phase 1: Annonce du masque du croupier (sauf manche 1)
+	if current_round_number > 1:
+		await _announce_dealer_mask()
+		await get_tree().create_timer(2.0).timeout
+		
+		# Phase 2: Shop des masques
+		await _start_shop_phase()
+		# Attendre que tous les joueurs aient fini (achat ou skip)
+		print("⏳ Attente fin shop...")
+		await self.shop_phase_completed
+		print("✓ Shop terminé")
+	else:
+		print("\n🎭 Manche 1 - Pas de masques")
+		_announce_to_all("🎭 Round 1 - No masks yet...")
+	
+	# Phase 3: Appliquer les effets du masque du croupier
+	if dealer_current_mask != MaskEffects.DealerMask.NONE:
+		_apply_dealer_mask_effects()
+	
+	# Phase 4: Distribution des cartes
+	current_phase = GamePhase.PRE_FLOP
 	_deal_hole_cards()
 	
-	# Poster les blinds
+	# Poster les blinds (avec multiplicateur si Usurier)
 	_post_blinds()
 	
 	# Démarrer le tour de parole PRE-FLOP
 	await get_tree().create_timer(1.0).timeout
 	_start_betting_round()
 
+# ============================================================================
+# PHASES MASKARD - Annonce Croupier & Shop
+# ============================================================================
+
+func _announce_dealer_mask():
+	"""Le croupier choisit et annonce son masque pour cette manche"""
+	current_phase = GamePhase.DEALER_MASK_ANNOUNCE
+	
+	# Sélectionner un masque aléatoire (25% chaque ou aucun)
+	dealer_current_mask = MaskEffects.select_random_dealer_mask()
+	
+	if dealer_current_mask == MaskEffects.DealerMask.NONE:
+		print("\n👹 CROUPIER: Je ne porte pas de masque cette manche...")
+		_announce_to_all("👹 The Dealer wears... nothing.")
+		await get_tree().create_timer(1.0).timeout
+		_announce_to_all("'Play fairly... for now.'")
+	else:
+		var mask_info = MaskEffects.get_dealer_mask_info(dealer_current_mask)
+		print("\n👹 CROUPIER: J'arbore le ", mask_info.name)
+		print("   Effet: ", mask_info.description)
+		
+		# Annoncer à tous les joueurs
+		_announce_to_all("👹 The Dealer wears: " + mask_info.name_en)
+		await get_tree().create_timer(1.0).timeout
+		_announce_to_all(mask_info.announcement)
+
+func _start_shop_phase():
+	"""Ouvre le shop de masques pour tous les joueurs"""
+	current_phase = GamePhase.SHOP_PHASE
+	print("\n🛍️ SHOP DES MASQUES OUVERT")
+	
+	_announce_to_all("🛍️ Mask Shop is open! (100 chips)")
+	
+	# Envoyer les infos du shop à chaque joueur
+	for peer_id in all_players:
+		var last_mask = player_last_masks.get(peer_id, MaskEffects.PlayerMask.NONE)
+		var available_masks = MaskEffects.get_available_shop_masks(last_mask)
+		var player_chips = player_stacks[peer_id]
+		
+		var player_node = get_node("../PlayerContainer/" + str(peer_id))
+
+		player_node.show_shop_ui.rpc_id(peer_id, available_masks, player_chips)
+		print("  → Joueur ", peer_id, " peut acheter: ", available_masks)
+
+	# Reset liste synchronisation
+	finished_shop_players.clear()
+
+@rpc("any_peer", "call_local", "reliable")
+func player_finished_shop_phase():
+	"""Un joueur signale qu'il a fini ses achats (ou skip)"""
+	if current_phase != GamePhase.SHOP_PHASE: return
+	
+	var sender_id = multiplayer.get_remote_sender_id()
+	if sender_id == 0: sender_id = 1
+	
+	if sender_id not in finished_shop_players:
+		finished_shop_players.append(sender_id)
+		print("🛒 Shop fini pour joueur ", sender_id, " (", finished_shop_players.size(), "/", active_players.size(), ")")
+		
+		# Vérifier si tous les joueurs actifs ont fini
+		if finished_shop_players.size() >= active_players.size():
+			shop_phase_completed.emit()
+
+func _apply_dealer_mask_effects():
+	"""Applique les effets globaux du masque du croupier"""
+	print("\n👹 Application des effets du croupier...")
+	
+	match dealer_current_mask:
+		MaskEffects.DealerMask.USURIER:
+			bet_multiplier = 2.0
+			print("   💰 Toutes les mises sont DOUBLÉES!")
+			_announce_to_all("💰 All bets are DOUBLED!")
+			
+		MaskEffects.DealerMask.GEOLIER:
+			fold_disabled = true
+			print("   ⛓️ Impossible de se coucher!")
+			_announce_to_all("⛓️ FOLDING IS FORBIDDEN!")
+			
+		MaskEffects.DealerMask.AVEUGLE:
+			community_hidden = true
+			print("   👁️ Cartes communes cachées!")
+			_announce_to_all("👁️ Community cards are HIDDEN!")
+
+# ============================================================================
+# EFFETS DES CARTES MASQUÉES (12 effets)
+# ============================================================================
+
+func _apply_table_effect(card_id: int):
+	"""Applique l'effet de TABLE d'une carte masquée qui apparaît sur le board"""
+	var info = MaskEffects.get_face_card_info(card_id)
+	if info.is_empty():
+		return
+	
+	var is_red = info.color == MaskEffects.HeadCardColor.RED
+	var rank = info.rank  # 0=Jack, 1=Queen, 2=King
+	
+	print("\n🎭 EFFET DE TABLE: ", info.name)
+	_announce_to_all("🎭 TABLE EFFECT: " + info.name)
+	await get_tree().create_timer(1.0).timeout
+	
+	if is_red:
+		match rank:
+			MaskEffects.HeadCardRank.JACK:
+				await _table_effect_red_jack()  # L'Observateur
+			MaskEffects.HeadCardRank.QUEEN:
+				await _table_effect_red_queen()  # La Parasyte
+			MaskEffects.HeadCardRank.KING:
+				await _table_effect_red_king()  # Le Banquier Corrompu
+	else:
+		match rank:
+			MaskEffects.HeadCardRank.JACK:
+				await _table_effect_black_jack()  # Le Trickster
+			MaskEffects.HeadCardRank.QUEEN:
+				await _table_effect_black_queen()  # L'Inquisitrice
+			MaskEffects.HeadCardRank.KING:
+				await _table_effect_black_king()  # Le Néant
+
+# --- EFFETS DE TABLE ROUGES ---
+
+func _table_effect_red_jack():
+	"""Valet Rouge - Chaque joueur doit montrer une carte au choix"""
+	print("   👁️ Révélation partielle - Chaque joueur montre une carte")
+	_announce_to_all("👁️ 'I see you...' - Everyone reveals one card!")
+	
+	# Pour l'instant, révéler automatiquement la première carte de chaque joueur
+	for peer_id in active_players:
+		if peer_id in player_hands:
+			var cards = player_hands[peer_id]
+			if cards.size() > 0:
+				# Montrer la première carte à tout le monde
+				_reveal_player_card_to_all.rpc(peer_id, cards[0])
+	
+	await get_tree().create_timer(2.0).timeout
+
+func _table_effect_red_queen():
+	"""Dame Rouge - Le plus riche donne 50 jetons au plus pauvre"""
+	print("   🩸 Transfusion - Le riche donne au pauvre")
+	
+	var richest_id = -1
+	var richest_amount = -1
+	var poorest_id = -1
+	var poorest_amount = 999999
+	
+	for peer_id in active_players:
+		var stack = player_stacks[peer_id]
+		if stack > richest_amount:
+			richest_amount = stack
+			richest_id = peer_id
+		if stack < poorest_amount:
+			poorest_amount = stack
+			poorest_id = peer_id
+	
+	if richest_id != -1 and poorest_id != -1 and richest_id != poorest_id:
+		var transfer = min(MaskEffects.STEAL_AMOUNT, player_stacks[richest_id])
+		player_stacks[richest_id] -= transfer
+		player_stacks[poorest_id] += transfer
+		
+		_update_player_display(richest_id)
+		_update_player_display(poorest_id)
+		
+		_announce_to_all("🩸 Transfusion: Player " + str(richest_id) + " gives " + str(transfer) + "$ to Player " + str(poorest_id))
+	
+	await get_tree().create_timer(1.5).timeout
+
+func _table_effect_red_king():
+	"""Roi Rouge - Pot empoisonné - Chaque joueur mise 50% de plus"""
+	print("   🔥 Pot empoisonné - Chaque joueur mise 50% de plus")
+	_announce_to_all("🔥 'Poisoned pot!' - Everyone bets 50% more!")
+	
+	for peer_id in active_players:
+		var current_bet = current_bets.get(peer_id, 0)
+		var extra_bet = int(current_bet * 0.5)
+		if extra_bet > 0 and player_stacks[peer_id] >= extra_bet:
+			player_stacks[peer_id] -= extra_bet
+			current_bets[peer_id] = current_bet + extra_bet
+			pot += extra_bet
+			_update_player_display(peer_id)
+			print("   → Joueur ", peer_id, " paie ", extra_bet, "$ de plus")
+	
+	_sync_pot_to_all()
+	await get_tree().create_timer(1.5).timeout
+
+# --- EFFETS DE TABLE NOIRS ---
+
+func _table_effect_black_jack():
+	"""Valet Noir - Chaos mineur - Une carte de la table est remplacée"""
+	print("   🌀 Chaos mineur - Une carte est remplacée")
+	_announce_to_all("🌀 'Chaos!' - A table card is replaced!")
+	
+	if community_cards.size() > 0 and deck.size() > 0:
+		# Choisir une carte au hasard à remplacer
+		var replace_index = randi() % community_cards.size()
+		var old_card = community_cards[replace_index]
+		var new_card = deck.pop_back()
+		
+		community_cards[replace_index] = new_card
+		
+		# Vérifier si la nouvelle carte est une tête masquée
+		if MaskEffects.is_face_card(new_card) and MaskEffects.should_card_be_masked():
+			masked_cards[new_card] = true
+			print("   🎭 La nouvelle carte est aussi masquée!")
+		
+		_announce_to_all("🌀 Card " + _card_to_string(old_card) + " replaced by " + _card_to_string(new_card))
+		
+		# Re-afficher les cartes
+		await _show_community_cards()
+	
+	await get_tree().create_timer(1.5).timeout
+
+func _table_effect_black_queen():
+	"""Dame Noire - Tribunal - Impossible de fold, mise minimum 50"""
+	print("   ⚖️ Tribunal - Impossible de fold, mise minimum 50")
+	_announce_to_all("⚖️ 'TRIBUNAL!' - No folding, 50$ minimum per action!")
+	
+	fold_disabled = true  # Comme le Geôlier
+	min_raise = max(min_raise, 50)  # Mise minimum augmentée
+	
+	await get_tree().create_timer(1.5).timeout
+
+func _table_effect_black_king():
+	"""Roi Noir - Ténèbres absolues - Écrans sombres, timer réduit"""
+	print("   🌑 Ténèbres absolues!")
+	_announce_to_all("🌑 'Absolute darkness...' - Timer -20s!")
+	
+	# Activer l'état
+	darkness_active = true
+	current_turn_duration = 10.0  # Réduire le temps de tour (30s -> 10s)
+	
+	# Appliquer l'effet de ténèbres à tous les joueurs
+	for peer_id in active_players:
+		var player_node = get_node("../PlayerContainer/" + str(peer_id))
+		if player_node.has_method("apply_darkness_effect"):
+			player_node.apply_darkness_effect.rpc_id(peer_id, true)
+	
+	await get_tree().create_timer(1.5).timeout
+
+@rpc("authority", "call_local", "reliable")
+func _reveal_player_card_to_all(player_id: int, card_id: int):
+	"""Révèle une carte d'un joueur à tout le monde"""
+	print("👁️ Joueur ", player_id, " montre: ", _card_to_string(card_id))
+	# Visual feedback pourrait être ajouté ici
+
+# ============================================================================
+# EFFETS DEPUIS LA MAIN (activés par clic du joueur)
+# ============================================================================
+
+@rpc("any_peer", "call_local", "reliable")
+func request_activate_mask_effect(card_id: int):
+	"""Un joueur demande à activer l'effet de sa carte masquée (ancien RPC sans cible)"""
+	request_activate_mask_effect_targeted(card_id, -1)
+
+@rpc("any_peer", "call_local", "reliable")
+func request_activate_mask_effect_targeted(card_id: int, target_id: int):
+	"""Un joueur demande à activer l'effet de sa carte masquée avec cible"""
+	if not multiplayer.is_server():
+		return
+	
+	var activator_id = multiplayer.get_remote_sender_id()
+	
+	# Vérifier que le joueur possède cette carte
+	var player_cards = player_hands.get(activator_id, [])
+	if card_id not in player_cards:
+		print("⚠ Joueur ", activator_id, " n'a pas la carte ", card_id)
+		_send_effect_result(activator_id, "⚠ Carte invalide!")
+		return
+	
+	# Vérifier que la carte est masquée
+	if not masked_cards.get(card_id, false):
+		print("⚠ Carte ", card_id, " n'est pas masquée")
+		_send_effect_result(activator_id, "⚠ Cette carte n'est pas masquée!")
+		return
+		
+	# VÉRIFICATION USAGE UNIQUE
+	if not used_hand_effects.has(activator_id):
+		used_hand_effects[activator_id] = []
+		
+	if card_id in used_hand_effects[activator_id]:
+		print("⚠ Effet déjà utilisé pour cette carte !")
+		_send_effect_result(activator_id, "⚠ Already used this effect!")
+		return
+		
+	# Marquer comme utilisé
+	used_hand_effects[activator_id].append(card_id)
+	
+	# Marquer côté client
+	var player_node = get_node("../PlayerContainer/" + str(activator_id))
+	if player_node.has_method("mark_card_used"):
+		player_node.mark_card_used.rpc(card_id)
+	
+	var info = MaskEffects.get_face_card_info(card_id)
+	if info.is_empty():
+		return
+	
+	print("\n🎭 ACTIVATION EFFET MAIN: ", info.name, " par joueur ", activator_id, " cible: ", target_id)
+	_announce_to_all("🎭 " + info.name + " activated!")
+	
+	var is_red = info.color == MaskEffects.HeadCardColor.RED
+	var rank = info.rank
+	
+	if is_red:
+		match rank:
+			MaskEffects.HeadCardRank.JACK:
+				await _hand_effect_red_jack(activator_id, target_id)
+			MaskEffects.HeadCardRank.QUEEN:
+				await _hand_effect_red_queen(activator_id, target_id)
+			MaskEffects.HeadCardRank.KING:
+				await _hand_effect_red_king(activator_id, target_id)
+	else:
+		match rank:
+			MaskEffects.HeadCardRank.JACK:
+				await _hand_effect_black_jack(activator_id)
+			MaskEffects.HeadCardRank.QUEEN:
+				await _hand_effect_black_queen(activator_id, target_id)
+			MaskEffects.HeadCardRank.KING:
+				await _hand_effect_black_king(activator_id, target_id)
+
+func _send_effect_result(player_id: int, message: String):
+	"""Envoie le résultat d'un effet au joueur"""
+	var player_node = get_node_or_null("../PlayerContainer/" + str(player_id))
+	if player_node:
+		player_node.show_effect_result.rpc_id(player_id, message)
+
+# --- EFFETS DE MAIN ROUGES ---
+
+func _hand_effect_red_jack(activator_id: int, target_id: int = -1):
+	"""Valet Rouge - Inspecter une carte d'un joueur"""
+	print("   👁️ L'Observateur - Inspection d'une carte")
+	
+	# Si pas de cible spécifiée, prendre au hasard
+	if target_id == -1:
+		var targets = active_players.filter(func(id): return id != activator_id)
+		if targets.size() > 0:
+			target_id = targets.pick_random()
+	
+	if target_id == -1 or target_id == activator_id:
+		_send_effect_result(activator_id, "Aucune cible valide!")
+		return
+	
+	# Vérifier protection Voilé
+	if _check_voile_protection(target_id, activator_id):
+		_send_effect_result(activator_id, "Cible protégée par le Voile!")
+		return
+	
+	var target_cards = player_hands.get(target_id, [])
+	if target_cards.size() > 0:
+		var revealed_card = target_cards.pick_random()
+		var card_str = _card_to_string(revealed_card)
+		
+		# Envoyer la carte révélée uniquement à l'activateur
+		_send_effect_result(activator_id, "👁️ Joueur " + str(target_id) + " a: " + card_str)
+		_announce_to_all("👁️ Joueur " + str(activator_id) + " a inspecté une carte de Joueur " + str(target_id))
+
+func _hand_effect_red_queen(activator_id: int, target_id: int = -1):
+	"""Dame Rouge - Voler 50 jetons à un joueur"""
+	print("   🩸 La Parasyte - Vol de jetons")
+	
+	# Si pas de cible spécifiée, prendre au hasard
+	if target_id == -1:
+		var targets = active_players.filter(func(id): return id != activator_id)
+		if targets.size() > 0:
+			target_id = targets.pick_random()
+	
+	if target_id == -1 or target_id == activator_id:
+		_send_effect_result(activator_id, "Aucune cible valide!")
+		return
+	
+	# Vérifier protection Voilé
+	if _check_voile_protection(target_id, activator_id):
+		_send_effect_result(activator_id, "Cible protégée par le Voile!")
+		return
+	
+	var steal_amount = min(MaskEffects.STEAL_AMOUNT, player_stacks[target_id])
+	player_stacks[target_id] -= steal_amount
+	player_stacks[activator_id] += steal_amount
+	
+	_update_player_display(target_id)
+	_update_player_display(activator_id)
+	
+	var msg = "🩸 Vous avez volé " + str(steal_amount) + "$ à Joueur " + str(target_id)
+	_send_effect_result(activator_id, msg)
+	_announce_to_all("🩸 Joueur " + str(activator_id) + " vole " + str(steal_amount) + "$ à Joueur " + str(target_id))
+
+func _hand_effect_red_king(activator_id: int, target_id: int = -1):
+	"""Roi Rouge - Forcer un pacte de partage des gains"""
+	print("   🤝 Le Banquier Corrompu - Pacte forcé")
+	
+	# Si pas de cible spécifiée, prendre au hasard
+	if target_id == -1:
+		var targets = active_players.filter(func(id): return id != activator_id)
+		if targets.size() > 0:
+			target_id = targets.pick_random()
+	
+	if target_id == -1 or target_id == activator_id:
+		_send_effect_result(activator_id, "Aucune cible valide!")
+		return
+	
+	# Vérifier protection Voilé
+	if _check_voile_protection(target_id, activator_id):
+		_send_effect_result(activator_id, "Cible protégée par le Voile!")
+		return
+	
+	active_pacts.append({"from": activator_id, "to": target_id})
+	
+	var msg = "🤝 Pacte forcé avec Joueur " + str(target_id) + " - Gains partagés!"
+	_send_effect_result(activator_id, msg)
+	_announce_to_all("🤝 PACTE: Joueurs " + str(activator_id) + " et " + str(target_id) + " partagent les gains!")
+
+# --- EFFETS DE MAIN NOIRS ---
+
+func _hand_effect_black_jack(activator_id: int):
+	"""Valet Noir - Échanger une carte avec le deck"""
+	print("   🌀 Le Trickster - Échange de carte")
+	
+	if deck.size() > 0:
+		var player_cards = player_hands.get(activator_id, [])
+		if player_cards.size() > 0:
+			# Échanger la première carte (ou random)
+			var old_card = player_cards[0]
+			var new_card = deck.pop_back()
+			
+			player_hands[activator_id][0] = new_card
+			deck.append(old_card)
+			deck.shuffle()
+			
+			# Envoyer les nouvelles cartes au joueur
+			var player_node = get_node("../PlayerContainer/" + str(activator_id))
+			var new_cards = player_hands[activator_id]
+			var new_masked = [masked_cards.get(new_cards[0], false), masked_cards.get(new_cards[1], false)]
+			player_node.receive_cards_masked.rpc_id(activator_id, new_cards, new_masked)
+			
+			var msg = "🌀 Carte échangée! Nouvelle carte: " + _card_to_string(new_card)
+			_send_effect_result(activator_id, msg)
+			_announce_to_all("🌀 Joueur " + str(activator_id) + " a échangé une carte!")
+	else:
+		_send_effect_result(activator_id, "❌ Le deck est vide!")
+
+func _hand_effect_black_queen(activator_id: int, target_id: int = -1):
+	"""Dame Noire - Forcer un joueur à révéler sa carte la plus haute"""
+	print("   ⚖️ L'Inquisitrice - Révélation forcée")
+	
+	# Si pas de cible spécifiée, prendre au hasard
+	if target_id == -1:
+		var targets = active_players.filter(func(id): return id != activator_id)
+		if targets.size() > 0:
+			target_id = targets.pick_random()
+	
+	if target_id == -1 or target_id == activator_id:
+		_send_effect_result(activator_id, "Aucune cible valide!")
+		return
+	
+	# Vérifier protection Voilé
+	if _check_voile_protection(target_id, activator_id):
+		_send_effect_result(activator_id, "Cible protégée par le Voile!")
+		return
+	
+	var target_cards = player_hands.get(target_id, [])
+	if target_cards.size() > 0:
+		# Trouver la carte la plus haute
+		var highest_card = target_cards[0]
+		for card in target_cards:
+			if (card % 13) > (highest_card % 13):
+				highest_card = card
+		
+		var card_str = _card_to_string(highest_card)
+		_send_effect_result(activator_id, "⚖️ Joueur " + str(target_id) + " a comme carte haute: " + card_str)
+		_announce_to_all("⚖️ Joueur " + str(target_id) + " révèle sa carte haute: " + card_str)
+
+func _hand_effect_black_king(activator_id: int, target_id: int = -1):
+	"""Roi Noir - Aveugler un joueur (ne voit plus les cartes communes)"""
+	print("   🌑 Le Néant - Aveuglement")
+	
+	# Si pas de cible spécifiée, prendre au hasard
+	if target_id == -1:
+		var targets = active_players.filter(func(id): return id != activator_id)
+		if targets.size() > 0:
+			target_id = targets.pick_random()
+	
+	if target_id == -1 or target_id == activator_id:
+		_send_effect_result(activator_id, "Aucune cible valide!")
+		return
+	
+	# Vérifier protection Voilé
+	if _check_voile_protection(target_id, activator_id):
+		_send_effect_result(activator_id, "Cible protégée par le Voile!")
+		return
+	
+	players_blinded.append(target_id)
+	
+	var player_node = get_node("../PlayerContainer/" + str(target_id))
+	if player_node.has_method("set_blinded"):
+		player_node.set_blinded.rpc_id(target_id, true)
+	
+	_send_effect_result(activator_id, "🌑 Joueur " + str(target_id) + " est aveuglé!")
+	_announce_to_all("🌑 Joueur " + str(target_id) + " a été AVEUGLÉ!")
+
+func _check_voile_protection(target_id: int, attacker_id: int) -> bool:
+	"""Vérifie si la cible a le Masque Voilé actif"""
+	var has_voile = player_masks.get(target_id, MaskEffects.PlayerMask.NONE) == MaskEffects.PlayerMask.VOILE
+	var already_used = player_protection_used.get(target_id, false)
+	
+	if has_voile and not already_used:
+		player_protection_used[target_id] = true
+		_announce_to_all("🛡️ Player " + str(target_id) + "'s Veiled Mask blocks the effect!")
+		print("   🛡️ Le Masque Voilé protège le joueur ", target_id)
+		return true
+	
+	return false
+
+@rpc("any_peer", "call_local", "reliable")
+func request_buy_mask(mask_type: int):
+	"""Un joueur demande à acheter un masque"""
+	if not multiplayer.is_server():
+		return
+	
+	var buyer_id = multiplayer.get_remote_sender_id()
+	var cost = MaskEffects.MASK_SHOP_COST
+	
+	# Vérifications
+	if player_stacks[buyer_id] < cost:
+		print("⚠ Joueur ", buyer_id, " n'a pas assez de jetons")
+		return
+	
+	var last_mask = player_last_masks.get(buyer_id, MaskEffects.PlayerMask.NONE)
+	if mask_type == last_mask:
+		print("⚠ Joueur ", buyer_id, " ne peut pas racheter le même masque")
+		return
+	
+	# Achat réussi
+	player_stacks[buyer_id] -= cost
+	player_masks[buyer_id] = mask_type
+	player_last_masks[buyer_id] = mask_type
+	
+	var mask_info = MaskEffects.get_player_mask_info(mask_type)
+	print("🎭 Joueur ", buyer_id, " achète: ", mask_info.name)
+	
+	# Sync UI
+	var player_node = get_node("../PlayerContainer/" + str(buyer_id))
+	player_node.update_stack.rpc(player_stacks[buyer_id])
+	
+	# Annoncer à tous (pour la stratégie)
+	_announce_to_all("🎭 Player " + str(buyer_id) + " wears: " + mask_info.name_en)
+
 func _deal_hole_cards():
-	"""Distribue 2 cartes à chaque joueur"""
+	"""Distribue 2 cartes à chaque joueur avec probabilité de masques"""
 	print("\n📇 Distribution des cartes...")
 	
 	# Jouer l'animation de distribution du croupier sur tous les clients
@@ -240,32 +942,68 @@ func _deal_hole_cards():
 	for peer_id in active_players:
 		var card1 = deck.pop_back()
 		var card2 = deck.pop_back()
-		player_hands[peer_id] = [card1, card2]
+		var cards = [card1, card2]
+		var cards_masked = [false, false]
+		var player_has_masked_cards = []
 		
-		# Envoi sécurisé des cartes AU JOUEUR UNIQUEMENT
+		# Vérifier le bonus du Masque du Corbeau
+		var has_corbeau = player_masks.get(peer_id, MaskEffects.PlayerMask.NONE) == MaskEffects.PlayerMask.CORBEAU
+		
+		# Pour chaque carte, vérifier si c'est une tête et si elle devient masquée
+		for i in range(2):
+			var card = cards[i]
+			if MaskEffects.is_face_card(card):
+				# Probabilité de masque: 33% (+ bonus Corbeau = 30% => 63%)
+				var mask_chance = MaskEffects.MASK_PROBABILITY
+				if has_corbeau:
+					mask_chance += 0.30  # Bonus Corbeau
+				
+				if randf() < mask_chance:
+					cards_masked[i] = true
+					masked_cards[card] = true
+					player_has_masked_cards.append(card)
+					print("  🎭 Carte masquée pour joueur ", peer_id, ": ", _card_to_string(card))
+		
+		player_hands[peer_id] = cards
+		player_masked_cards[peer_id] = player_has_masked_cards
+		
+		# Envoi sécurisé des cartes avec info de masque
 		var player_node = get_node("../PlayerContainer/" + str(peer_id))
-		player_node.receive_cards.rpc_id(peer_id, [card1, card2])
+		player_node.receive_cards_masked.rpc_id(peer_id, cards, cards_masked)
 		
 		print("  → Joueur ", peer_id, " reçoit 2 cartes")
 
+func _card_to_string(card_id: int) -> String:
+	"""Convertit un ID de carte en texte lisible"""
+	var suits = ["♠", "♥", "♦", "♣"]
+	var ranks = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "V", "D", "R", "A"]
+	var rank = card_id % 13
+	var suit = int(float(card_id) / 13)
+	return ranks[rank] + suits[suit]
+
 func _post_blinds():
-	"""Fait payer les blinds (small + big)"""
+	"""Fait payer les blinds (small + big) avec multiplicateur du croupier"""
 	var sb_index = (dealer_button_index + 1) % all_players.size()
 	var bb_index = (dealer_button_index + 2) % all_players.size()
 	
 	var sb_id = all_players[sb_index]
 	var bb_id = all_players[bb_index]
 	
+	# Appliquer le multiplicateur (Masque de l'Usurier = x2)
+	var sb_amount = int(current_small_blind * bet_multiplier)
+	var bb_amount = int(current_big_blind * bet_multiplier)
+	
 	# Small Blind
-	_force_bet(sb_id, SMALL_BLIND)
-	print("💵 Small Blind (", SMALL_BLIND, "$) → Joueur ", sb_id)
+	_force_bet(sb_id, sb_amount)
+	print("💵 Small Blind (", sb_amount, "$) → Joueur ", sb_id)
 	
 	# Big Blind
-	_force_bet(bb_id, BIG_BLIND)
-	print("💵 Big Blind (", BIG_BLIND, "$) → Joueur ", bb_id)
+	_force_bet(bb_id, bb_amount)
+	print("💵 Big Blind (", bb_amount, "$) → Joueur ", bb_id)
 	
-	highest_bet = BIG_BLIND
+	highest_bet = bb_amount
 	last_aggressor_index = bb_index
+	min_raise = bb_amount
 
 func _force_bet(peer_id: int, amount: int):
 	"""Force un joueur à miser (pour les blinds)"""
@@ -318,6 +1056,9 @@ func _ask_current_player():
 	if peer_id in folded_players:
 		_next_player()
 		return
+		
+	# Démarrer le timer pour ce joueur
+	_reset_timer()
 	
 	var to_call = highest_bet - current_bets.get(peer_id, 0)
 	var can_check = (to_call == 0)
@@ -352,6 +1093,7 @@ func _next_player():
 func _end_betting_round():
 	"""Termine le tour de mises et passe à la phase suivante"""
 	waiting_for_player_action = false
+	_stop_timer()
 	
 	print("\n✓ Fin du tour de mises")
 	
@@ -370,7 +1112,7 @@ func _end_betting_round():
 # ==============================================================================
 
 func _deal_flop():
-	"""Révèle le flop (3 cartes)"""
+	"""Révèle le flop (3 cartes) avec possibilité de masques"""
 	current_phase = GamePhase.FLOP
 	print("\n🃏 FLOP")
 	
@@ -378,15 +1120,29 @@ func _deal_flop():
 	_play_dealer_animation.rpc("distribution")
 	
 	deck.pop_back()  # Burn card
+	var new_cards = []
 	for i in range(3):
-		community_cards.append(deck.pop_back())
+		var card = deck.pop_back()
+		community_cards.append(card)
+		new_cards.append(card)
+		
+		# Vérifier si la carte devient masquée (33% si tête)
+		if MaskEffects.is_face_card(card) and MaskEffects.should_card_be_masked():
+			masked_cards[card] = true
+			print("  🎭 Carte TABLE masquée: ", _card_to_string(card))
 	
-	_show_community_cards()
-	await get_tree().create_timer(1.5).timeout
+	await _show_community_cards()
+	
+	# Appliquer les effets de table des cartes masquées
+	for card in new_cards:
+		if masked_cards.get(card, false):
+			await _apply_table_effect(card)
+	
+	await get_tree().create_timer(1.0).timeout
 	_start_betting_round()
 
 func _deal_turn():
-	"""Révèle le turn (1 carte)"""
+	"""Révèle le turn (1 carte) avec possibilité de masque"""
 	current_phase = GamePhase.TURN
 	print("\n🃏 TURN")
 	
@@ -394,14 +1150,25 @@ func _deal_turn():
 	_play_dealer_animation.rpc("distribution")
 	
 	deck.pop_back()  # Burn
-	community_cards.append(deck.pop_back())
+	var card = deck.pop_back()
+	community_cards.append(card)
 	
-	_show_community_cards()
-	await get_tree().create_timer(1.5).timeout
+	# Vérifier si la carte devient masquée
+	if MaskEffects.is_face_card(card) and MaskEffects.should_card_be_masked():
+		masked_cards[card] = true
+		print("  🎭 Carte TABLE masquée: ", _card_to_string(card))
+	
+	await _show_community_cards()
+	
+	# Appliquer l'effet de table si masquée
+	if masked_cards.get(card, false):
+		await _apply_table_effect(card)
+	
+	await get_tree().create_timer(1.0).timeout
 	_start_betting_round()
 
 func _deal_river():
-	"""Révèle le river (1 carte)"""
+	"""Révèle le river (1 carte) avec possibilité de masque"""
 	current_phase = GamePhase.RIVER
 	print("\n🃏 RIVER")
 	
@@ -409,14 +1176,25 @@ func _deal_river():
 	_play_dealer_animation.rpc("distribution")
 	
 	deck.pop_back()  # Burn
-	community_cards.append(deck.pop_back())
+	var card = deck.pop_back()
+	community_cards.append(card)
 	
-	_show_community_cards()
-	await get_tree().create_timer(1.5).timeout
+	# Vérifier si la carte devient masquée
+	if MaskEffects.is_face_card(card) and MaskEffects.should_card_be_masked():
+		masked_cards[card] = true
+		print("  🎭 Carte TABLE masquée: ", _card_to_string(card))
+	
+	await _show_community_cards()
+	
+	# Appliquer l'effet de table si masquée
+	if masked_cards.get(card, false):
+		await _apply_table_effect(card)
+	
+	await get_tree().create_timer(1.0).timeout
 	_start_betting_round()
 
 func _show_community_cards():
-	"""Affiche les cartes communes sur la table"""
+	"""Affiche les cartes communes sur la table (avec masques)"""
 	print("  Cartes: ", community_cards)
 	
 	# Nettoyer les anciennes cartes
@@ -427,38 +1205,52 @@ func _show_community_cards():
 	# Attendre un frame pour que le nettoyage soit effectif
 	await get_tree().process_frame
 	
-	# Spawner les nouvelles cartes
+	# Spawner les nouvelles cartes avec info de masque
 	for i in range(community_cards.size()):
-		_spawn_table_card.rpc(community_cards[i], i)
+		var card_val = community_cards[i]
+		var is_masked = masked_cards.get(card_val, false)
+		_spawn_table_card_masked.rpc(card_val, i, is_masked)
 
 @rpc("authority", "call_local", "reliable")
-func _spawn_table_card(card_val: int, index: int):
-	"""Spawn une carte sur la table (RPC pour tous les clients)"""
+func _spawn_table_card_masked(card_val: int, index: int, is_masked: bool):
+	"""Spawn une carte sur la table avec support masque"""
 	var card_container = get_node("../CardContainer")
 	var card = preload("res://scenes/card.tscn").instantiate()
 	card_container.add_child(card)
 	
-	# Appliquer la texture
+	# Appliquer la texture (avec masque si applicable)
 	if card.has_method("set_card_visuals"):
-		card.set_card_visuals(card_val)
+		card.set_card_visuals(card_val, is_masked)
 	
-	# Révéler la carte
-	if card.has_method("reveal"):
+	# Configurer comme carte de table
+	if card.has_method("set_as_table_card"):
+		card.set_as_table_card()
+	
+	# Révéler la carte (sauf si Masque de l'Aveugle actif)
+	if not community_hidden and card.has_method("reveal"):
 		card.reveal()
 	
 	# Position sur la table (centré, espacé horizontalement)
-	# Ajusté pour QuadMesh 0.7 x 1.0 avec scale 0.25
-	var card_width = 0.7 * 0.25  # = 0.175
-	var spacing = card_width + 0.05  # Largeur carte + marge
-	var start_x = -spacing * 2  # Pour centrer 5 cartes
+	var card_width = 0.7 * 0.25
+	var spacing = card_width + 0.05
+	var start_x = -spacing * 2
 	
 	card.position = Vector3(start_x + index * spacing, 0, 0)
-	card.rotation_degrees = Vector3(-90, 0, 0)  # Face vers le haut (table)
-	card.scale = Vector3(0.25, 0.25, 0.25)  # Taille visible sur la table
+	card.rotation_degrees = Vector3(-90, 0, 0)
+	card.scale = Vector3(0.25, 0.25, 0.25)
 	
 	AudioManager.play("card_slide", true, 0.8)
 	
 	print("🃏 Carte table spawned: ", card_val, " index: ", index, " pos: ", card.position)
+	if is_masked:
+		print("🎭 Carte TABLE masquée spawned: ", card_val)
+	else:
+		print("🃏 Carte table spawned: ", card_val)
+
+# Garder l'ancienne fonction pour compatibilité
+@rpc("authority", "call_local", "reliable")
+func _spawn_table_card(card_val: int, index: int):
+	_spawn_table_card_masked(card_val, index, false)
 
 # ==============================================================================
 # ACTIONS JOUEUR (RPC)
@@ -470,6 +1262,10 @@ func player_action(action_type: String, amount: int = 0):
 		return
 	
 	var sender_id = multiplayer.get_remote_sender_id()
+	# Si appel local (client qui héberge), get_remote_sender_id() retourne 0 ou 1
+	if sender_id == 0:
+		sender_id = 1
+		
 	var expected_id = all_players[current_player_index]
 	
 	# Vérification sécurité
@@ -477,25 +1273,50 @@ func player_action(action_type: String, amount: int = 0):
 		print("⚠ Action refusée de ", sender_id)
 		return
 	
-	print("\n📢 Joueur ", sender_id, " : ", action_type, " (", amount, "$)")
+	_execute_player_action(sender_id, action_type, amount)
+
+func _execute_player_action(player_id: int, action_type: String, amount: int):
+	"""Exécute l'action d'un joueur après validation"""
+	print("\n📢 Joueur ", player_id, " : ", action_type, " (", amount, "$)")
+	
+	# MASQUE DU GEÔLIER: Impossible de se coucher!
+	if action_type == "FOLD" and fold_disabled:
+		print("⛓️ INTERDIT DE SE COUCHER! (Masque du Geôlier)")
+		_announce_to_all("⛓️ " + str(player_id) + " tried to fold but NOBODY LEAVES!")
+		# Forcer un call à la place
+		action_type = "CALL"
+		# Recalculer le montant du call si nécessaire ou laisser tel quel
+		# Ici on assume que le joueur doit payer le call
+		var to_call = highest_bet - current_bets.get(player_id, 0)
+		amount = min(player_stacks[player_id], to_call)
 	
 	match action_type:
 		"FOLD":
-			_handle_fold(sender_id)
+			_handle_fold(player_id)
 		"CHECK":
-			_handle_check(sender_id)
+			_handle_check(player_id)
 		"CALL":
-			_handle_call(sender_id)
+			_handle_call(player_id)
 		"BET", "RAISE":
-			_handle_bet(sender_id, amount)
+			_handle_bet(player_id, amount)
 	
 	_next_player()
 
 func _handle_fold(peer_id: int):
+	"""Gère le fold d'un joueur, avec support Masque Affamé"""
 	folded_players.append(peer_id)
 	active_players.erase(peer_id)
 	print("  → Joueur ", peer_id, " se couche")
 	_broadcast_sound("fold_rustle", 0.9)
+	
+	# Vérifier si le joueur a le Masque Affamé
+	var has_affame = player_masks.get(peer_id, MaskEffects.PlayerMask.NONE) == MaskEffects.PlayerMask.AFFAME
+	
+	if has_affame:
+		print("  → Joueur ", peer_id, " se couche (mais reste AFFAMÉ!)")
+		_announce_to_all("👹 Player " + str(peer_id) + " folds but remains HUNGRY...")
+	else:
+		print("  → Joueur ", peer_id, " se couche")
 
 func _handle_check(peer_id: int):
 	print("  → Joueur ", peer_id, " check")
@@ -573,6 +1394,18 @@ func _end_hand_early():
 func _showdown():
 	"""Révélation des mains et détermination du gagnant"""
 	current_phase = GamePhase.SHOWDOWN
+	_stop_timer()  # Arrêter le timer
+	
+	# Reset des effets de table (Darkness, etc.)
+	if darkness_active:
+		darkness_active = false
+		current_turn_duration = 30.0
+		for peer_id in all_players:
+			var player_node = get_node("../PlayerContainer/" + str(peer_id))
+			if player_node.has_method("apply_darkness_effect"):
+				player_node.apply_darkness_effect.rpc_id(peer_id, false)
+	
+	print("\n🏆 SHOWDOWN")
 	print("\n🎴 SHOWDOWN !")
 	
 	var best_score = -1
@@ -619,11 +1452,22 @@ func _showdown():
 	# Nettoyer les cartes sur la table (RPC pour tous les clients)
 	_clear_table_cards.rpc()
 	
+	# MASKARD: Augmenter les blinds pour la prochaine manche (x1.5)
+	_increase_blinds()
+	
 	# Annoncer la nouvelle manche
 	_announce_to_all("🎲 Nouvelle manche...")
 	await get_tree().create_timer(1.5).timeout
 	
 	start_new_hand()
+
+func _increase_blinds():
+	"""Augmente les blinds de 1.5x à chaque manche (anti-longueurs)"""
+	current_small_blind = int(current_small_blind * MaskEffects.BLIND_MULTIPLIER)
+	current_big_blind = int(current_big_blind * MaskEffects.BLIND_MULTIPLIER)
+	
+	print("\n📈 BLINDS AUGMENTÉES: SB=", current_small_blind, "$ / BB=", current_big_blind, "$")
+	_announce_to_all("📈 Blinds increased! SB=" + str(current_small_blind) + "$ / BB=" + str(current_big_blind) + "$")
 
 func _announce_to_all(message: String):
 	"""Envoie une annonce à tous les joueurs"""
