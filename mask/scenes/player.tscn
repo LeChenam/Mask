@@ -1,7 +1,8 @@
 [gd_scene format=3 uid="uid://dk4x0ljcy3eud"]
 
 [ext_resource type="Script" uid="uid://dd8vta5e4evmo" path="res://scripts/player.gd" id="1_4flbx"]
-[ext_resource type="ArrayMesh" uid="uid://decnq2ui5r40w" path="res://assets/objects/human.obj" id="2_g2els"]
+[ext_resource type="PackedScene" uid="uid://copr32rb7b1u2" path="res://assets/objects/human.glb" id="2_qhqgy"]
+[ext_resource type="PackedScene" uid="uid://crs1ca7oyosxd" path="res://assets/objects/mask_joueur.glb" id="3_dqkch"]
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_sh265"]
 properties/0/path = NodePath(".:position")
@@ -22,7 +23,7 @@ script = ExtResource("1_4flbx")
 [node name="Head" type="Node3D" parent="." unique_id=26157597]
 
 [node name="Camera3D" type="Camera3D" parent="Head" unique_id=1713301794]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0019653141, 1.2456539, -0.088942826)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0019653141, 1.2456539, -0.30634218)
 current = true
 fov = 51.722557
 
@@ -38,10 +39,6 @@ shape = SubResource("CapsuleShape3D_4flbx")
 offset_right = 40.0
 offset_bottom = 23.0
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=494969114]
-transform = Transform3D(-0.3, 0, -2.6226834e-08, 0, 0.3, 0, 2.6226834e-08, 0, -0.3, 0, 0, 0)
-mesh = ExtResource("2_g2els")
-
 [node name="UI" type="CanvasLayer" parent="." unique_id=1868016129]
 
 [node name="Label_Info" type="Label" parent="UI" unique_id=890197557]
@@ -51,7 +48,8 @@ offset_right = 1226.0
 offset_bottom = 56.0
 horizontal_alignment = 1
 
-[node name="AnnouncementLabel" type="Label" parent="UI"]
+[node name="AnnouncementLabel" type="Label" parent="UI" unique_id=2062615834]
+visible = false
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
@@ -64,10 +62,8 @@ offset_bottom = 50.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_font_sizes/font_size = 48
-text = ""
 horizontal_alignment = 1
 vertical_alignment = 1
-visible = false
 
 [node name="StackLabel" type="Label" parent="UI" unique_id=2048909616]
 offset_left = 16.0
@@ -113,3 +109,11 @@ text = "Se coucher"
 layout_mode = 2
 max_value = 1000.0
 step = 10.0
+
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="." unique_id=690293829]
+
+[node name="human" parent="MeshInstance3D2" unique_id=1149914732 instance=ExtResource("2_qhqgy")]
+transform = Transform3D(-0.3, 0, -2.6226834e-08, 0, 0.3, 0, 2.6226834e-08, 0, -0.3, 0, 0, 0)
+
+[node name="mask_joueur" parent="MeshInstance3D2" unique_id=1121923311 instance=ExtResource("3_dqkch")]
+transform = Transform3D(-5, 0, -4.371139e-07, 0, 5, 0, 4.371139e-07, 0, -5, 0, 1.2730718, -0.21809235)
