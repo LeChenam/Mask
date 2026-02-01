@@ -737,7 +737,7 @@ func request_activate_mask_effect_targeted(card_id: int, target_id: int):
 	else:
 		match rank:
 			MaskEffects.HeadCardRank.JACK:
-				await _hand_effect_black_jack(activator_id)
+				await _hand_effect_black_jack(activator_id, target_id)
 			MaskEffects.HeadCardRank.QUEEN:
 				await _hand_effect_black_queen(activator_id, target_id)
 			MaskEffects.HeadCardRank.KING:
@@ -842,18 +842,25 @@ func _hand_effect_red_king(activator_id: int, target_id: int = -1):
 
 # --- EFFETS DE MAIN NOIRS ---
 
-func _hand_effect_black_jack(activator_id: int):
-	"""Valet Noir - Échanger une carte avec le deck"""
+func _hand_effect_black_jack(activator_id: int, card_to_swap_id: int = -1):
+	"""Valet Noir - Échanger une carte (choisie ou random) avec le deck"""
 	print("   🌀 Le Trickster - Échange de carte")
 	
 	if deck.size() > 0:
 		var player_cards = player_hands.get(activator_id, [])
 		if player_cards.size() > 0:
-			# Échanger la première carte (ou random)
-			var old_card = player_cards[0]
+			# Trouver l'index de la carte à échanger
+			var swap_index = 0
+			if card_to_swap_id != -1:
+				var found_index = player_cards.find(card_to_swap_id)
+				if found_index != -1:
+					swap_index = found_index
+			
+			# Échanger la carte choisie
+			var old_card = player_cards[swap_index]
 			var new_card = deck.pop_back()
 			
-			player_hands[activator_id][0] = new_card
+			player_hands[activator_id][swap_index] = new_card
 			deck.append(old_card)
 			deck.shuffle()
 			

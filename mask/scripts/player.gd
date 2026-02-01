@@ -693,11 +693,16 @@ func _try_activate_card_effect(card):
 	
 	# Vérifier si cet effet nécessite une cible
 	var needs_target = _effect_needs_target(card.card_id)
+	var needs_card_selection = _effect_needs_card_selection(card.card_id)
 	
 	if needs_target:
-		# Ouvrir le menu de sélection de cible
+		# Ouvrir le menu de sélection de cible (joueur)
 		pending_card_effect = card
 		_show_target_selection_ui(card.card_id)
+	elif needs_card_selection:
+		# Ouvrir le menu de sélection de carte (soi-même)
+		pending_card_effect = card
+		_show_card_selection_ui(card.card_id)
 	else:
 		# Effet sans cible - activer directement
 		# card.effect_used = true # Ne pas marquer utilisé tant que le serveur n'a pas validé !
@@ -721,6 +726,19 @@ func _effect_needs_target(card_id: int) -> bool:
 		return rank_type in [0, 1, 2]  # Tous les rouges ciblent
 	else:
 		return rank_type in [1, 2]  # Dame et Roi noirs ciblent
+
+func _effect_needs_card_selection(card_id: int) -> bool:
+	"""Détermine si l'effet nécessite de choisir une de ses propres cartes"""
+	var rank_index = card_id % 13
+	var suit_index = int(float(card_id) / 13)
+	var is_red = suit_index == 1 or suit_index == 2
+	var rank_type = rank_index - 9
+	
+	# Valet Noir : Échanger une carte
+	if not is_red and rank_type == 0:
+		return true
+		
+	return false
 
 func _show_target_selection_ui(card_id: int):
 	"""Affiche le menu de sélection de cible"""
@@ -821,6 +839,81 @@ func _on_target_cancelled():
 		target_selection_ui = null
 	
 	info_label.text = "❌ Effet annulé"
+
+func _show_card_selection_ui(card_id: int):
+	"""Affiche le menu de sélection de carte à échanger (Valet Noir)"""
+	if target_selection_ui:
+		target_selection_ui.queue_free()
+	
+	target_selection_ui = PanelContainer.new()
+	target_selection_ui.name = "CardSelectionUI"
+	
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.05, 0.15, 0.95)
+	style.border_color = Color(0.4, 0.2, 0.8, 1.0) # Violet pour Trickster
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_right = 8
+	style.corner_radius_bottom_left = 8
+	target_selection_ui.add_theme_stylebox_override("panel", style)
+	
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	target_selection_ui.add_child(vbox)
+	
+	var title = Label.new()
+	title.text = "CHOISIR CARTE À ÉCHANGER"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_color_override("font_color", Color(0.6, 0.4, 1.0))
+	vbox.add_child(title)
+	
+	# Lister nos cartes
+	for i in range(hand_cards.size()):
+		var c = hand_cards[i]
+		# On peut échanger n'importe laquelle, même celle qui active l'effet
+		# (Si on échange le Valet Noir, l'effet part avec lui ?)
+		# Le user n'a pas précisé restriction.
+		
+		var btn = Button.new()
+		var card_name = _get_card_name(c.card_id)
+		btn.text = card_name
+		btn.custom_minimum_size = Vector2(180, 40)
+		btn.pressed.connect(_on_card_to_swap_selected.bind(c.card_id))
+		vbox.add_child(btn)
+			
+	var cancel_btn = Button.new()
+	cancel_btn.text = "✗ Annuler"
+	cancel_btn.pressed.connect(_on_target_cancelled)
+	vbox.add_child(cancel_btn)
+	
+	target_selection_ui.position = Vector2(280, 200)
+	$UI.add_child(target_selection_ui)
+	info_label.text = "🔄 Quelle carte échanger ?"
+
+func _on_card_to_swap_selected(card_to_swap_id: int):
+	"""Une carte à échanger a été choisie"""
+	if pending_card_effect:
+		# On envoie l'ID de la carte à échanger comme 'target_id'
+		# Le serveur saura interpréter car c'est un effet Valet Noir
+		_send_effect_activation(pending_card_effect.card_id, card_to_swap_id)
+		pending_card_effect = null
+	
+	if target_selection_ui:
+		target_selection_ui.queue_free()
+		target_selection_ui = null
+		
+	info_label.text = "🔄 Échange envoyé..."
+
+func _get_card_name(card_id: int) -> String:
+	var ranks = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "Valet", "Dame", "Roi", "As"]
+	var suits = ["♠", "♥", "♦", "♣"]
+	var r = card_id % 13
+	var s = int(card_id / 13)
+	return ranks[r] + " " + suits[s]
 
 func _send_effect_activation(card_id: int, target_id: int):
 	"""Envoie l'activation de l'effet au serveur"""
