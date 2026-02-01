@@ -197,19 +197,52 @@ func update_pot(amount: int):
 
 @rpc("any_peer", "call_local", "reliable")
 func receive_cards(cards: Array):
-	"""Reçoit nos 2 cartes privées"""
-	print("🃏 Cartes reçues : ", cards)
+	"""Reçoit nos 2 cartes privées et les affiche en 3D"""
+	print("🃏 Cartes reçues : ", cards, " - is_local: ", is_local_player)
 	
-	# Nettoyer anciennes cartes
-	if has_node("HandContainer"):
+	# Nettoyer anciennes cartes (peut être dans Head ou directement sur le player)
+	if has_node("Head/HandContainer"):
+		$Head/HandContainer.queue_free()
+		await get_tree().process_frame
+	elif has_node("HandContainer"):
 		$HandContainer.queue_free()
+		await get_tree().process_frame
 	
+	# Créer le conteneur pour les cartes de la main
 	var hand_container = Node3D.new()
 	hand_container.name = "HandContainer"
-	add_child(hand_container)
 	
-	# TODO: Spawn visuel des cartes devant la caméra
-	# Pour l'instant juste afficher dans le terminal
+	# Attacher au Head pour que les cartes suivent la vue du joueur
+	if has_node("Head"):
+		$Head.add_child(hand_container)
+		# Position devant la caméra - ajusté pour QuadMesh 0.7x1.0
+		hand_container.position = Vector3(0, -0.25, -0.5)
+		print("🃏 HandContainer attaché au Head")
+	else:
+		add_child(hand_container)
+		hand_container.position = Vector3(0, 1.0, -0.5)
+		print("🃏 HandContainer attaché au Player (pas de Head)")
+	
+	# Spawn des 2 cartes - espacement ajusté pour nouvelle taille
+	var offsets = [Vector3(-0.08, 0, 0), Vector3(0.08, 0, 0)]
+	
+	for i in range(cards.size()):
+		var card = preload("res://scenes/card.tscn").instantiate()
+		hand_container.add_child(card)
+		print("🃏 Carte ", i, " instanciée: ", cards[i])
+		
+		# Position et rotation - incliné vers le joueur pour bien voir
+		card.position = offsets[i]
+		card.rotation_degrees = Vector3(-60, 0, 5 if i == 0 else -5)  # X négatif pour voir la face
+		card.scale = Vector3(0.18, 0.18, 0.18)  # Taille augmentée
+		
+		# Appliquer la texture
+		if card.has_method("set_card_visuals"):
+			card.set_card_visuals(cards[i])
+		
+		# Révéler uniquement pour le joueur local
+		if is_local_player and card.has_method("reveal"):
+			card.reveal()
 	
 	if is_local_player:
 		info_label.text = "🃏 Cartes : " + _card_to_string(cards[0]) + " " + _card_to_string(cards[1])
@@ -226,15 +259,45 @@ func _card_to_string(card_id: int) -> String:
 
 @rpc("any_peer", "call_local", "reliable")
 func show_hand_to_all(cards: Array):
-	"""Showdown - Affiche les cartes de ce joueur à tous"""
-	# TODO: Spawn visuel au-dessus de la tête
+	"""Showdown - Affiche les cartes de ce joueur au-dessus de sa tête"""
 	print("📢 Joueur ", name, " montre : ", cards)
+	
+	# Nettoyer ancien affichage
+	if has_node("ShowdownDisplay"):
+		$ShowdownDisplay.queue_free()
+	
+	# Créer conteneur au-dessus de la tête
+	var container = Node3D.new()
+	container.name = "ShowdownDisplay"
+	add_child(container)
+	container.position = Vector3(0, 2.0, 0)  # 2m au-dessus du joueur
+	
+	# Spawn des cartes côte à côte
+	var spacing = 0.2
+	var start_x = -spacing / 2.0
+	
+	for i in range(cards.size()):
+		var card = preload("res://scenes/card.tscn").instantiate()
+		container.add_child(card)
+		
+		card.position = Vector3(start_x + i * spacing, 0, 0)
+		card.rotation_degrees = Vector3(0, 180, 0)  # Face vers l'extérieur
+		card.scale = Vector3(1.2, 1.2, 1.2)
+		
+		if card.has_method("set_card_visuals"):
+			card.set_card_visuals(cards[i])
+		if card.has_method("reveal"):
+			card.reveal()
 
 @rpc("any_peer", "call_local", "reliable")
 func clear_hand_visuals():
 	"""Nettoie les visuels de cartes"""
-	if has_node("HandContainer"):
+	# HandContainer peut être dans Head ou directement sur le player
+	if has_node("Head/HandContainer"):
+		$Head/HandContainer.queue_free()
+	elif has_node("HandContainer"):
 		$HandContainer.queue_free()
+	
 	if has_node("ShowdownDisplay"):
 		$ShowdownDisplay.queue_free()
 

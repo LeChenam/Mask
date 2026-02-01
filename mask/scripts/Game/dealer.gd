@@ -89,7 +89,8 @@ func deal_community(count):
 	for i in range(count):
 		var card_val = deck.pop_back()
 		community_cards.append(card_val)
-		spawn_community_card.rpc(card_val)
+		# Passer l'index pour le positionnement correct
+		spawn_community_card.rpc(card_val, community_cards.size() - 1)
 
 func reset_betting_round():
 	current_round_bets.clear()
@@ -210,11 +211,25 @@ func sync_data(id):
 	get_node("../PlayerContainer/" + str(id)).update_stack.rpc_id(id, player_stacks[id])
 
 @rpc("authority", "call_local", "reliable")
-func spawn_community_card(card_val):
-	var card = preload("res://card.tscn").instantiate()
-	# Configuration visuelle de la carte ici (Texture, etc)
-	# ...
+func spawn_community_card(card_val: int, card_index: int):
+	"""Affiche une carte commune sur la table"""
+	var card = preload("res://scenes/card.tscn").instantiate()
 	get_node("../CardContainer").add_child(card)
-	# Animation simple pour la placer au centre
-	var offset = get_node("../CardContainer").get_child_count() * 0.2
-	card.position = Vector3(offset - 0.5, 0, 0) # Ajuste selon ta table
+	
+	# Appliquer la texture de la carte
+	if card.has_method("set_card_visuals"):
+		card.set_card_visuals(card_val)
+	
+	# Révéler la carte (face visible)
+	if card.has_method("reveal"):
+		card.reveal()
+	
+	# Positionner sur la table (au centre)
+	# La table est à environ Y = 0.4, centrée en X et Z
+	var spacing = 0.2
+	var start_x = -0.4  # Centrer 5 cartes
+	card.position = Vector3(start_x + card_index * spacing, 0.42, 0)
+	card.rotation_degrees = Vector3(-90, 0, 0)  # Face vers le haut
+	card.scale = Vector3(1.5, 1.5, 1.5)  # Plus grand pour voir sur la table
+	
+	print("🃏 Carte flop spawned: ", card_val, " à position: ", card.position)

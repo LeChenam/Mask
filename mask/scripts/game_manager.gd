@@ -332,11 +332,47 @@ func _deal_river():
 	_start_betting_round()
 
 func _show_community_cards():
-	"""Affiche les cartes communes dans le terminal (à améliorer visuellement plus tard)"""
+	"""Affiche les cartes communes sur la table"""
 	print("  Cartes: ", community_cards)
 	
-	# TODO: Spawn visuel des cartes sur la table
-	# Pour l'instant juste print
+	# Nettoyer les anciennes cartes
+	var card_container = get_node("../CardContainer")
+	for child in card_container.get_children():
+		child.queue_free()
+	
+	# Attendre un frame pour que le nettoyage soit effectif
+	await get_tree().process_frame
+	
+	# Spawner les nouvelles cartes
+	for i in range(community_cards.size()):
+		_spawn_table_card.rpc(community_cards[i], i)
+
+@rpc("authority", "call_local", "reliable")
+func _spawn_table_card(card_val: int, index: int):
+	"""Spawn une carte sur la table (RPC pour tous les clients)"""
+	var card_container = get_node("../CardContainer")
+	var card = preload("res://scenes/card.tscn").instantiate()
+	card_container.add_child(card)
+	
+	# Appliquer la texture
+	if card.has_method("set_card_visuals"):
+		card.set_card_visuals(card_val)
+	
+	# Révéler la carte
+	if card.has_method("reveal"):
+		card.reveal()
+	
+	# Position sur la table (centré, espacé horizontalement)
+	# Ajusté pour QuadMesh 0.7 x 1.0 avec scale 0.25
+	var card_width = 0.7 * 0.25  # = 0.175
+	var spacing = card_width + 0.05  # Largeur carte + marge
+	var start_x = -spacing * 2  # Pour centrer 5 cartes
+	
+	card.position = Vector3(start_x + index * spacing, 0, 0)
+	card.rotation_degrees = Vector3(-90, 0, 0)  # Face vers le haut (table)
+	card.scale = Vector3(0.25, 0.25, 0.25)  # Taille visible sur la table
+	
+	print("🃏 Carte table spawned: ", card_val, " index: ", index, " pos: ", card.position)
 
 # ==============================================================================
 # ACTIONS JOUEUR (RPC)

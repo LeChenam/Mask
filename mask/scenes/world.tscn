@@ -54,6 +54,7 @@ transform = Transform3D(0.5085155, 0, 0.8610528, 0, 1, 0, -0.8610528, 0, 0.50851
 transform = Transform3D(0.41273877, 0, -0.91084945, 0, 1, 0, 0.91084945, 0, 0.41273877, 0.322, 0.3, 1.819)
 
 [node name="CardContainer" type="Node3D" parent="." unique_id=1925936243]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 0.07547808, 0.57853305, 0)
 
 [node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="." unique_id=852467706]
 _spawnable_scenes = PackedStringArray("uid://dk4x0ljcy3eud")
