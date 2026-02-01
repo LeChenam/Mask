@@ -196,6 +196,13 @@ func update_pot(amount: int):
 		pot_label.text = "🎲 POT : " + str(amount) + "$"
 
 @rpc("any_peer", "call_local", "reliable")
+func show_announcement(message: String):
+	"""Affiche une annonce importante à l'écran"""
+	if is_local_player:
+		info_label.text = message
+		print("📢 Annonce: ", message)
+
+@rpc("any_peer", "call_local", "reliable")
 func receive_cards(cards: Array):
 	"""Reçoit nos 2 cartes privées et les affiche en 3D"""
 	print("🃏 Cartes reçues : ", cards, " - is_local: ", is_local_player)
@@ -234,7 +241,7 @@ func receive_cards(cards: Array):
 		# Position et rotation - incliné vers le joueur pour bien voir
 		card.position = offsets[i]
 		card.rotation_degrees = Vector3(-60, 0, 5 if i == 0 else -5)  # X négatif pour voir la face
-		card.scale = Vector3(0.18, 0.18, 0.18)  # Taille augmentée
+		card.scale = Vector3(0.25, 0.25, 0.25)  # Taille augmentée
 		
 		# Appliquer la texture
 		if card.has_method("set_card_visuals"):

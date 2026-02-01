@@ -461,10 +461,21 @@ func _end_hand_early():
 	var winner_id = active_players[0]
 	print("\n🏆 GAGNANT PAR FORFAIT : Joueur ", winner_id)
 	
+	# Annoncer le gagnant à tous les joueurs
+	_announce_to_all("🏆 Joueur " + str(winner_id) + " gagne " + str(pot) + "$ par forfait !")
+	
 	player_stacks[winner_id] += pot
 	_update_player_display(winner_id)
 	
 	await get_tree().create_timer(3.0).timeout
+	
+	# Nettoyer les cartes sur la table (RPC pour tous les clients)
+	_clear_table_cards.rpc()
+	
+	# Annoncer la nouvelle manche
+	_announce_to_all("🎲 Nouvelle manche...")
+	await get_tree().create_timer(1.5).timeout
+	
 	start_new_hand()
 
 func _showdown():
@@ -500,11 +511,38 @@ func _showdown():
 		print("\n🏆 Joueur ", winner_id, " gagne ", int(winnings), "$")
 		_update_player_display(winner_id)
 	
+	# Annoncer le(s) gagnant(s)
+	if winners.size() == 1:
+		_announce_to_all("🏆 Joueur " + str(winners[0]) + " gagne " + str(int(winnings)) + "$ !")
+	else:
+		_announce_to_all("🏆 Égalité ! Pot partagé entre " + str(winners.size()) + " joueurs")
+	
 	await get_tree().create_timer(4.0).timeout
 	
-	# Nettoyer les visuels
+	# Nettoyer les visuels des joueurs
 	for peer_id in all_players:
 		var player_node = get_node("../PlayerContainer/" + str(peer_id))
 		player_node.clear_hand_visuals.rpc()
 	
+	# Nettoyer les cartes sur la table (RPC pour tous les clients)
+	_clear_table_cards.rpc()
+	
+	# Annoncer la nouvelle manche
+	_announce_to_all("🎲 Nouvelle manche...")
+	await get_tree().create_timer(1.5).timeout
+	
 	start_new_hand()
+
+func _announce_to_all(message: String):
+	"""Envoie une annonce à tous les joueurs"""
+	for peer_id in all_players:
+		var player_node = get_node("../PlayerContainer/" + str(peer_id))
+		player_node.show_announcement.rpc(message)
+
+@rpc("authority", "call_local", "reliable")
+func _clear_table_cards():
+	"""Nettoie toutes les cartes du CardContainer (synchronisé)"""
+	var card_container = get_node("../CardContainer")
+	for child in card_container.get_children():
+		child.queue_free()
+	print("🧹 Table nettoyée")
