@@ -66,6 +66,29 @@ func _ready():
 		if has_node("UI"): $UI.queue_free()
 
 # ==============================================================================
+# ANIMATIONS
+# ==============================================================================
+
+@rpc("any_peer", "call_local", "reliable")
+func _play_player_idle_animation():
+	"""Lance l'animation idle_joueur pour ce joueur (visible par tous)"""
+	var human_node = get_node_or_null("MeshInstance3D2/human")
+	if human_node:
+		var animation_player = null
+		for child in human_node.get_children():
+			if child is AnimationPlayer:
+				animation_player = child
+				break
+		
+		if animation_player:
+			if animation_player.has_animation("idle_joueur"):
+				animation_player.play("idle_joueur")
+				print("→ Animation idle_joueur lancée pour joueur ", name)
+			else:
+				print("⚠ Animation 'idle_joueur' non trouvée pour joueur ", name)
+				print("   Animations disponibles:", animation_player.get_animation_list())
+
+# ==============================================================================
 # BOUTON START (Uniquement pour le joueur 1 au début)
 # ==============================================================================
 

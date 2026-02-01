@@ -41,6 +41,7 @@ var action_count = 0
 var game_started = false
 var waiting_for_player_action = false
 
+
 # ==============================================================================
 # INITIALISATION
 # ==============================================================================
@@ -48,13 +49,69 @@ var waiting_for_player_action = false
 func _ready():
 	if not multiplayer.is_server():
 		return
-	
+
 	await get_tree().create_timer(0.5).timeout
+	
+	# Lancer l'animation du croupier sur tous les clients
+	_play_dealer_idle_animation.rpc()
+	
 	print("\n╔══════════════════════════════╗")
 	print("║   DEALER PRÊT - POKER v1.0   ║")
 	print("╚══════════════════════════════╝\n")
 	
 	_initialize_players()
+
+@rpc("any_peer", "call_local", "reliable")
+func _play_dealer_idle_animation():
+	"""Lance l'animation idle_croupier pour le croupier"""
+	print("\n=== DEBUG Croupier ===")
+	
+	# Le Dealer est le nœud actuel (self)
+	# Le human est un enfant direct
+	var human_node = get_node_or_null("human")
+	if human_node:
+		print("✓ Nœud human du croupier trouvé")
+		print("Enfants de human:")
+		for child in human_node.get_children():
+			print("  - ", child.name, " (", child.get_class(), ")")
+			if child is AnimationPlayer:
+				print("    Animations disponibles:")
+				for anim_name in child.get_animation_list():
+					print("      * ", anim_name)
+		
+		# Chercher l'AnimationPlayer
+		var animation_player = null
+		for child in human_node.get_children():
+			if child is AnimationPlayer:
+				animation_player = child
+				break
+		
+		if animation_player:
+			print("✓ AnimationPlayer trouvé pour le croupier")
+			if animation_player.has_animation("idle_croupier"):
+				animation_player.play("idle_croupier")
+				print("→ Animation idle_croupier lancée pour le croupier")
+			else:
+				print("⚠ Animation 'idle_croupier' non trouvée. Animations disponibles:", animation_player.get_animation_list())
+		else:
+			print("⚠ AnimationPlayer non trouvé dans human du croupier")
+	else:
+		print("⚠ Nœud human non trouvé pour le croupier")
+
+@rpc("any_peer", "call_local", "reliable")
+func _play_dealer_animation(anim_name: String):
+	"""Joue une animation du croupier"""
+	var human_node = get_node_or_null("human")
+	if human_node:
+		var animation_player = null
+		for child in human_node.get_children():
+			if child is AnimationPlayer:
+				animation_player = child
+				break
+		
+		if animation_player and animation_player.has_animation(anim_name):
+			animation_player.play(anim_name)
+			print("→ Animation '", anim_name, "' lancée pour le croupier")
 
 func _initialize_players():
 	"""Initialise tous les joueurs présents avec leur stack"""
@@ -91,6 +148,14 @@ func _notify_all_ready():
 		var player_node = get_node("../PlayerContainer/" + str(peer_id))
 		player_node.show_start_button.rpc()
 
+func _play_idle_animations():
+	"""Lance l'animation idle_joueur pour tous les joueurs"""
+	var player_container = get_node("../PlayerContainer")
+	
+	for player_node in player_container.get_children():
+		# Appeler le RPC sur chaque joueur pour qu'ils jouent l'animation sur tous les clients
+		player_node._play_player_idle_animation.rpc()
+
 # ==============================================================================
 # DÉMARRAGE DE LA PARTIE (Appelé par le premier joueur qui clique START)
 # ==============================================================================
@@ -112,8 +177,10 @@ func request_start_game():
 	print("║    PARTIE LANCÉE !           ║")
 	print("╚══════════════════════════════╝")
 	
-	game_started = true
-	# Cacher le bouton START chez tout le monde
+	game_started = true	
+	# Lancer l'animation idle_joueur pour tous les joueurs
+	_play_idle_animations()
+		# Cacher le bouton START chez tout le monde
 	for peer_id in all_players:
 		var player_node = get_node("../PlayerContainer/" + str(peer_id))
 		player_node.hide_start_button.rpc()
@@ -161,6 +228,9 @@ func start_new_hand():
 func _deal_hole_cards():
 	"""Distribue 2 cartes à chaque joueur"""
 	print("\n📇 Distribution des cartes...")
+	
+	# Jouer l'animation de distribution du croupier sur tous les clients
+	_play_dealer_animation.rpc("distribution")
 	
 	for peer_id in active_players:
 		var card1 = deck.pop_back()
@@ -299,6 +369,9 @@ func _deal_flop():
 	current_phase = GamePhase.FLOP
 	print("\n🃏 FLOP")
 	
+	# Jouer l'animation de distribution du croupier sur tous les clients
+	_play_dealer_animation.rpc("distribution")
+	
 	deck.pop_back()  # Burn card
 	for i in range(3):
 		community_cards.append(deck.pop_back())
@@ -312,6 +385,9 @@ func _deal_turn():
 	current_phase = GamePhase.TURN
 	print("\n🃏 TURN")
 	
+	# Jouer l'animation de distribution du croupier sur tous les clients
+	_play_dealer_animation.rpc("distribution")
+	
 	deck.pop_back()  # Burn
 	community_cards.append(deck.pop_back())
 	
@@ -323,6 +399,9 @@ func _deal_river():
 	"""Révèle le river (1 carte)"""
 	current_phase = GamePhase.RIVER
 	print("\n🃏 RIVER")
+	
+	# Jouer l'animation de distribution du croupier sur tous les clients
+	_play_dealer_animation.rpc("distribution")
 	
 	deck.pop_back()  # Burn
 	community_cards.append(deck.pop_back())
