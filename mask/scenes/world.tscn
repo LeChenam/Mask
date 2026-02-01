@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://dnuqhjie2j5wk"]
+[gd_scene format=3 uid="uid://dfks8dg36n5iy"]
 
 [ext_resource type="Script" uid="uid://dcg0aprrlldl0" path="res://scripts/world.gd" id="1_f3sb7"]
 [ext_resource type="ArrayMesh" uid="uid://ck1apr6cko8va" path="res://assets/objects/table.obj" id="2_fj7yv"]
@@ -54,7 +54,7 @@ transform = Transform3D(0.41273877, 0, -0.91084945, 0, 1, 0, 0.91084945, 0, 0.41
 [node name="CardContainer" type="Node3D" parent="." unique_id=1925936243]
 
 [node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="." unique_id=852467706]
-_spawnable_scenes = PackedStringArray("uid://bxs7aak1prc1q")
+_spawnable_scenes = PackedStringArray("uid://dk4x0ljcy3eud")
 spawn_path = NodePath("../PlayerContainer")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=868651673]

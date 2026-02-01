@@ -1,114 +1,138 @@
 extends Control
 
-const PORT = 42069
-const DISCOVERY_PORT = 42070 
-const BROADCAST_ADDRESS = "255.255.255.255" 
+const GAME_PORT = 42069
+const BROADCAST_PORT = 8989
+#const BROADCAST_ADDRESS = "255.255.255.255"
+const MAGIC_WORD = "MASKARD_SERVER"
+
+var current_broadcast_ip = "255.255.255.255" # Valeur par défaut
+var my_local_ips: Array = [] # Pour ignorer nos propres paquets
+
+# --- Fonction utilitaire pour trouver l'adresse .255 locale ---
+func _get_local_broadcast_ip() -> String:
+	var addresses = IP.get_local_addresses()
+	for ip in addresses:
+		# On cherche une IP locale classique (type 192.168.x.x ou 10.x.x.x)
+		if ip.begins_with("192.168.") or ip.begins_with("10."):
+			var parts = ip.split(".")
+			# On remplace le dernier chiffre par 255
+			parts[3] = "255" 
+			return ".".join(parts)
+	return "255.255.255.255" # Fallback si on ne trouve rien
 
 @onready var ip_input = $VBoxContainer/IPInput 
 
-var udp_peer := PacketPeerUDP.new()
+var udp = PacketPeerUDP.new()
 var searching = true
+var broadcast_timer = Timer.new()
 
 func _ready() -> void:
-	# Nettoyage au cas où une ancienne instance traîne
-	multiplayer.multiplayer_peer = null
+	# 1. Signaux réseau
+	multiplayer.connected_to_server.connect(_on_connected_ok)
+	multiplayer.connection_failed.connect(_on_connected_fail)
+	multiplayer.server_disconnected.connect(_on_server_lost)
+
+	# 2. Préparation UDP (Bind pour écouter)
+	udp.set_broadcast_enabled(true)
+	var err = udp.bind(BROADCAST_PORT)
 	
-	multiplayer.connected_to_server.connect(_on_connection_success)
-	multiplayer.connection_failed.connect(_on_connection_failed)
+	current_broadcast_ip = _get_local_broadcast_ip()
+	my_local_ips = IP.get_local_addresses() # Stocker nos IPs pour filtrage
+	print("LOBBY : Adresse de broadcast calculée -> ", current_broadcast_ip)
+	print("LOBBY : Mes IPs locales -> ", my_local_ips)
 	
-	var err = udp_peer.bind(DISCOVERY_PORT)
-	if err != OK:
-		print("INFO : Port UDP occupé, tentative de hosting forcé.")
-		_start_hosting()
-		return
+	if err == OK:
+		print("LOBBY : Écoute du réseau sur le port ", BROADCAST_PORT)
+	else:
+		print("LOBBY : Port UDP occupé. Une instance tourne peut-être déjà ?")
+		# On ne bloque pas, on continue, mais le scan auto ne marchera peut-être pas sur ce PC
 
-	print("RECHERCHE : Scan du réseau local...")
-	# Timer de 2 secondes
-	get_tree().create_timer(2.0).timeout.connect(_on_scan_timeout)
+	# 3. Timer de recherche plus long pour laisser le temps au serveur de broadcaster
+	print("LOBBY : Recherche de serveur...")
+	get_tree().create_timer(4.0).timeout.connect(_on_scan_timeout)
+	
+	# Timer pour envoyer le broadcast (sera activé si on devient Host)
+	add_child(broadcast_timer)
+	broadcast_timer.wait_time = 0.5 # Plus fréquent pour être détecté rapidement
+	broadcast_timer.timeout.connect(_send_broadcast)
 
-func _process(_delta: float) -> void:
-	if not searching: return
-
-	if udp_peer.get_available_packet_count() > 0:
-		var server_ip = udp_peer.get_packet_ip()
-		var packet_data = udp_peer.get_packet().get_string_from_utf8()
+func _process(_delta):
+	# Si on cherche, on écoute les paquets UDP
+	if searching and udp.get_available_packet_count() > 0:
+		var sender_ip = udp.get_packet_ip()
+		var packet = udp.get_packet()
+		var message = packet.get_string_from_utf8()
 		
-		if server_ip != "" and server_ip != "0.0.0.0" and packet_data == "MASKARD_SERVER":
-			print("SERVEUR TROUVÉ : IP -> ", server_ip)
-			_stop_searching_and_join(server_ip)
+		print("LOBBY : Paquet reçu de ", sender_ip, " -> '", message, "'")
+		
+		# On ignore nos propres messages (vérification complète avec toutes nos IPs)
+		var is_my_own_ip = sender_ip in my_local_ips
+		if message == MAGIC_WORD and sender_ip != "" and sender_ip != "0.0.0.0" and not is_my_own_ip:
+			print("LOBBY : Serveur trouvé à l'IP : ", sender_ip)
+			_join_game(sender_ip)
+		elif is_my_own_ip:
+			print("LOBBY : Paquet ignoré (c'est mon propre broadcast)")
 
 func _on_scan_timeout():
 	if searching:
-		print("RECHERCHE : Délai dépassé. Aucun serveur trouvé.")
-		_start_hosting_if_needed()
+		print("LOBBY : Aucun serveur trouvé. Je deviens l'HÔTE.")
+		_host_game()
 
-func _start_hosting_if_needed():
+# --- HOSTING ---
+func _host_game():
 	searching = false
-	# Debug : On regarde l'état actuel du peer
-	print("DEBUG : État du peer avant hosting : ", multiplayer.multiplayer_peer)
-	
-	# On force le hosting même si le peer n'est pas strictement null (sécurité)
-	print("ACTION : Lancement forcé du serveur...")
-	_start_hosting()
-
-func _start_hosting() -> void:
-	# On s'assure que le port UDP de scan est fermé avant de devenir serveur
-	udp_peer.close()
-	
 	var peer = ENetMultiplayerPeer.new()
-	var error = peer.create_server(PORT)
+	var err = peer.create_server(GAME_PORT)
 	
-	if error == OK:
+	if err == OK:
 		multiplayer.multiplayer_peer = peer
-		print("SERVEUR : Créé avec succès (ID 1).")
+		print("SERVEUR : Démarré (ID 1).")
 		
-		# On lance l'annonce pour les autres
-		_start_broadcasting()
+		# Envoyer immédiatement un broadcast puis continuer avec le timer
+		_send_broadcast()
+		broadcast_timer.start()
 		
-		# Vérification du chemin de la scène
-		var scene_path = "res://world.tscn"
-		if FileAccess.file_exists(scene_path):
-			print("SERVEUR : Chargement de la scène...")
-			get_tree().change_scene_to_file(scene_path)
-		else:
-			print("ERREUR CRITIQUE : Le fichier res://world.tscn est introuvable !")
+		_load_world()
 	else:
-		print("ERREUR SERVEUR : Code d'erreur -> ", error)
+		print("ERREUR : Impossible de créer le serveur.")
 
-func _start_broadcasting() -> void:
-	var timer = Timer.new()
-	add_child(timer)
-	timer.wait_time = 1.0
-	timer.timeout.connect(func():
-		udp_peer.set_dest_address(BROADCAST_ADDRESS, DISCOVERY_PORT)
-		udp_peer.put_packet("MASKARD_SERVER".to_utf8_buffer())
-	)
-	timer.autostart = true
-	timer.start()
-	print("BROADCAST : Le serveur envoie son signal.")
+func _send_broadcast():
+	# Le serveur envoie le mot magique à tout le monde
+	udp.set_dest_address(current_broadcast_ip, BROADCAST_PORT)
+	udp.put_packet(MAGIC_WORD.to_utf8_buffer())
 
-func _join_server(ip: String) -> void:
-	print("CLIENT : Connexion vers ", ip)
+# --- JOINING ---
+func _join_game(ip: String):
+	searching = false
+	broadcast_timer.stop() # On arrête de broadcaster au cas où
+	
+	print("CLIENT : Connexion vers ", ip, "...")
 	var peer = ENetMultiplayerPeer.new()
-	var error = peer.create_client(ip, PORT)
-	if error == OK:
-		multiplayer.multiplayer_peer = peer
-	else:
-		print("ERREUR CLIENT : ", error)
+	peer.create_client(ip, GAME_PORT)
+	multiplayer.multiplayer_peer = peer
 
-func _stop_searching_and_join(ip: String):
+# --- BOUTON MANUEL ---
+func _on_join_button_pressed():
 	searching = false
-	udp_peer.close()
-	_join_server(ip)
+	var ip = ip_input.text
+	if ip == "": ip = "127.0.0.1"
+	_join_game(ip)
 
-func _on_join_button_pressed() -> void:
-	searching = false
-	var target_ip = ip_input.text if ip_input.text != "" else "127.0.0.1"
-	_join_server(target_ip)
+# --- CALLBACKS ---
+func _on_connected_ok():
+	print("RÉSEAU : Connecté au serveur !")
+	_load_world()
 
-func _on_connection_success():
-	print("RESEAU : Connecté !")
-	get_tree().change_scene_to_file("res://world.tscn")
+func _on_connected_fail():
+	print("RÉSEAU : Échec connexion.")
+	searching = true # On recommence à chercher ?
 
-func _on_connection_failed():
-	print("RESEAU : Échec.")
+func _on_server_lost():
+	print("RÉSEAU : Connexion perdue.")
+	get_tree().change_scene_to_file("res://scenes/lobby.tscn")
+
+func _load_world():
+	# On ferme l'UDP seulement si on est CLIENT (le serveur continue à broadcaster)
+	if not multiplayer.is_server():
+		udp.close()
+	get_tree().change_scene_to_file("res://scenes/world.tscn")
