@@ -10,6 +10,7 @@ extends CharacterBody3D
 # --- VARIABLES DE POKER & UI ---
 @onready var action_ui = $UI/ActionButtons
 @onready var info_label = $UI/Label_Info
+@onready var announcement_label = $UI/AnnouncementLabel
 @onready var stack_label = $UI/StackLabel
 @onready var pot_label = $UI/PotLabel
 @onready var call_label = $UI/ActionButtons/Label_ToCall
@@ -197,10 +198,15 @@ func update_pot(amount: int):
 
 @rpc("any_peer", "call_local", "reliable")
 func show_announcement(message: String):
-	"""Affiche une annonce importante à l'écran"""
+	"""Affiche une annonce importante au centre de l'écran"""
 	if is_local_player:
-		info_label.text = message
+		announcement_label.text = message
+		announcement_label.visible = true
 		print("📢 Annonce: ", message)
+		
+		# Faire disparaître après 3 secondes
+		await get_tree().create_timer(3.0).timeout
+		announcement_label.visible = false
 
 @rpc("any_peer", "call_local", "reliable")
 func receive_cards(cards: Array):
