@@ -83,10 +83,6 @@ horizontal_alignment = 1
 layout_mode = 2
 alignment = 1
 
-[node name="BetInput" type="LineEdit" parent="UI/ActionButtons/HBoxContainer" unique_id=2056208808]
-layout_mode = 2
-placeholder_text = "$"
-
 [node name="Btn_Miser" type="Button" parent="UI/ActionButtons/HBoxContainer" unique_id=395080126]
 layout_mode = 2
 text = "Miser"
@@ -94,3 +90,8 @@ text = "Miser"
 [node name="Btn_Coucher" type="Button" parent="UI/ActionButtons/HBoxContainer" unique_id=449399618]
 layout_mode = 2
 text = "Se coucher"
+
+[node name="BetInput" type="SpinBox" parent="UI/ActionButtons/HBoxContainer" unique_id=1016515972]
+layout_mode = 2
+max_value = 1000.0
+step = 10.0

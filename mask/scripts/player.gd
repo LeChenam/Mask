@@ -1,4 +1,7 @@
 extends CharacterBody3D
+# ============================================================================
+# PLAYER - Contrôle du personnage + UI Poker
+# ============================================================================
 
 # --- VARIABLES DE MOUVEMENT & CAMERA ---
 @export var sensitivity = 0.003
@@ -11,68 +14,116 @@ extends CharacterBody3D
 @onready var pot_label = $UI/PotLabel
 @onready var call_label = $UI/ActionButtons/Label_ToCall
 @onready var bet_input = $UI/ActionButtons/HBoxContainer/BetInput
+@onready var btn_bet = $UI/ActionButtons/HBoxContainer/Btn_Miser
+@onready var btn_fold = $UI/ActionButtons/HBoxContainer/Btn_Coucher
 
 # --- VARIABLES LOGIQUES ---
 var my_stack = 0
 var current_to_call = 0
+var can_check = false
 var is_local_player = false
+var is_my_turn = false
 
 # ==============================================================================
 # INITIALISATION RÉSEAU
 # ==============================================================================
 
 func _enter_tree():
-	# Définit l'autorité réseau dès la création du nœud
 	var player_id = name.to_int()
 	set_multiplayer_authority(player_id)
-	
-	# Vérifie si c'est NOTRE personnage sur NOTRE ordinateur
 	is_local_player = (player_id == multiplayer.get_unique_id())
-	print("PLAYER : Spawn du joueur ", player_id, " - Est local: ", is_local_player)
 
 func _ready():
-	# Attendre un frame pour que la synchro physique soit prête
 	await get_tree().process_frame
 	
 	if is_local_player:
-		# --- C'EST MON PERSONNAGE ---
-		print("PLAYER : Configuration locale (ID ", multiplayer.get_unique_id(), ")")
+		print("✓ Joueur local initialisé (ID ", multiplayer.get_unique_id(), ")")
 		
-		# 1. Caméra
-		if camera: camera.make_current()
+		# Caméra
+		if camera: 
+			camera.make_current()
 		
-		# 2. Souris (Visible par défaut pour cliquer sur l'UI)
+		# Souris
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		
-		# 3. Connexion des boutons UI (Poker)
-		$UI/ActionButtons/HBoxContainer/Btn_Miser.pressed.connect(_on_btn_miser_pressed)
-		$UI/ActionButtons/HBoxContainer/Btn_Coucher.pressed.connect(_on_btn_coucher_pressed)
+		# Connexion boutons
+		btn_bet.pressed.connect(_on_btn_bet_pressed)
+		btn_fold.pressed.connect(_on_btn_fold_pressed)
 		
-		# 4. État initial de l'UI
+		# UI initiale
 		action_ui.hide()
-		info_label.text = "En attente du début de partie..."
+		info_label.text = "En attente de joueurs..."
 		
+		# Afficher le bouton START si on est le premier joueur
+		if multiplayer.get_unique_id() == 1:
+			_create_start_button()
 	else:
-		# --- C'EST LE PERSONNAGE D'UN AUTRE ---
-		print("PLAYER : Configuration distante")
-		
-		# 1. Désactiver les contrôles et la caméra
+		# Désactiver pour les autres joueurs
 		if camera: camera.current = false
 		set_physics_process(false)
 		set_process_unhandled_input(false)
-		
-		# 2. SUPPRIMER L'UI (On ne veut pas voir les boutons des autres)
-		if has_node("UI"):
-			$UI.queue_free()
+		if has_node("UI"): $UI.queue_free()
 
 # ==============================================================================
-# GESTION DES ENTRÉES (SOURIS / MOUVEMENT)
+# BOUTON START (Uniquement pour le joueur 1 au début)
+# ==============================================================================
+
+func _create_start_button():
+	"""Crée le bouton de démarrage de partie"""
+	if not has_node("UI"):
+		return
+	
+	var start_btn = Button.new()
+	start_btn.name = "StartButton"
+	start_btn.text = "▶ LANCER LA PARTIE"
+	start_btn.custom_minimum_size = Vector2(300, 60)
+	
+	# Style
+	start_btn.add_theme_font_size_override("font_size", 24)
+	
+	# Position centrale
+	start_btn.position = Vector2(320 - 150, 400)
+	
+	start_btn.pressed.connect(_on_start_button_pressed)
+	$UI.add_child(start_btn)
+	
+	print("→ Bouton START créé")
+
+func _on_start_button_pressed():
+	"""Envoie la demande de démarrage au serveur"""
+	print("📢 Demande de démarrage envoyée")
+	
+	# Cacher le bouton
+	if has_node("UI/StartButton"):
+		$UI/StartButton.queue_free()
+	
+	info_label.text = "Démarrage de la partie..."
+	
+	# Appel RPC au GameManager (vérifier que le script est bien chargé)
+	var dealer = get_node_or_null("/root/World/Dealer")
+	if dealer and dealer.has_method("request_start_game"):
+		dealer.request_start_game.rpc_id(1)
+	else:
+		print("❌ ERREUR : Le Dealer n'a pas le script game_manager.gd attaché !")
+		info_label.text = "ERREUR : Dealer non configuré"
+
+@rpc("any_peer", "call_local", "reliable")
+func show_start_button():
+	"""Appelé par le serveur quand assez de joueurs"""
+	if not is_local_player or has_node("UI/StartButton"):
+		return
+	
+	_create_start_button()
+	info_label.text = "Prêt ! Cliquez START pour lancer"
+
+# ==============================================================================
+# CONTRÔLES CAMÉRA
 # ==============================================================================
 
 func _unhandled_input(event):
 	if not is_local_player: return
 
-	# Clic Droit maintenu = Mode Caméra (FPS)
+	# Clic Droit = Mode FPS
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_RIGHT:
 			if event.pressed:
@@ -80,131 +131,165 @@ func _unhandled_input(event):
 			else:
 				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
-	# Rotation de la tête
+	# Rotation caméra
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		rotate_y(-event.relative.x * sensitivity)
 		camera.rotate_x(-event.relative.y * sensitivity)
 		camera.rotation.x = clamp(camera.rotation.x, deg_to_rad(-80), deg_to_rad(80))
 
 # ==============================================================================
-# LOGIQUE POKER - RPC (Reçus du Serveur)
+# RPC - RÉCEPTION DES INFOS DU SERVEUR
 # ==============================================================================
 
-@rpc("authority", "call_local", "reliable")
-func notify_turn(is_my_turn: bool, amount_to_call: int = 0):
-	if not is_local_player: return
-
-	action_ui.visible = is_my_turn
-	current_to_call = amount_to_call
-	
-	if is_my_turn:
-		info_label.text = "À VOUS DE JOUER !"
-		
-		if amount_to_call > 0:
-			call_label.text = "Mise à suivre : " + str(amount_to_call) + "$"
-			bet_input.value = amount_to_call
-			bet_input.min_value = amount_to_call
-		else:
-			call_label.text = "Parole (Check)"
-			bet_input.value = 0
-			bet_input.min_value = 0
-	else:
-		info_label.text = "Le voisin réfléchit..."
-
-@rpc("authority", "call_local", "reliable")
-func update_stack(new_amount: int):
-	if is_local_player:
-		my_stack = new_amount
-		stack_label.text = "Argent : " + str(my_stack) + "$"
-		bet_input.max_value = my_stack
-
-@rpc("authority", "call_local", "reliable")
-func update_pot(amount: int):
-	if is_local_player:
-		pot_label.text = "POT : " + str(amount) + "$"
-
-@rpc("authority", "call_remote", "reliable")
-func receive_cards(cards: Array):
-	print("Cartes reçues : ", cards)
-	
-	# Nettoyer les vieilles cartes s'il y en a
-	if has_node("HandContainer"): $HandContainer.queue_free()
-	
-	var hand_node = Node3D.new()
-	hand_node.name = "HandContainer"
-	add_child(hand_node)
-	
-	# Positionner les cartes devant la caméra (Ajuste selon ton modèle)
-	# Les cartes sont attachées au Player, donc elles bougent avec lui
-	var offsets = [Vector3(-0.2, -0.2, -0.5), Vector3(0.2, -0.2, -0.5)]
-	
-	for i in range(cards.size()):
-		# Assure-toi que card.tscn existe bien à cet endroit
-		var card_obj = preload("res://scenes/card.tscn").instantiate()
-		hand_node.add_child(card_obj)
-		
-		# On place la carte relative au joueur
-		card_obj.position = offsets[i] 
-		# On la tourne pour qu'elle soit face au joueur
-		card_obj.rotation_degrees.x = 70 
-		
-		# On applique la texture
-		if card_obj.has_method("set_card_visuals"):
-			card_obj.set_card_visuals(cards[i])
-		
-		# On force la face visible pour le joueur local
-		if card_obj.has_method("reveal"):
-			card_obj.reveal()
-
-@rpc("authority", "call_local", "reliable")
-func show_hand_to_all(cards: Array):
-	# Affiche les cartes au-dessus de la tête du joueur pour le Showdown
-	if has_node("ShowdownDisplay"): get_node("ShowdownDisplay").queue_free()
-	
-	var container = Node3D.new()
-	container.name = "ShowdownDisplay"
-	add_child(container)
-	container.position = Vector3(0, 2.2, 0) # 2.2m au dessus du sol
-	
-	var spacing = 0.4
-	var current_x = -spacing / 2.0
-	
-	for card_id in cards:
-		var card_obj = preload("res://scenes/card.tscn").instantiate()
-		container.add_child(card_obj)
-		card_obj.position = Vector3(current_x, 0, 0)
-		
-		if card_obj.has_method("set_card_visuals"):
-			card_obj.set_card_visuals(card_id)
-			
-		current_x += spacing
-
-@rpc("authority", "call_local", "reliable")
-func clear_hand_visuals():
-	if has_node("ShowdownDisplay"): get_node("ShowdownDisplay").queue_free()
-	if has_node("HandContainer"): get_node("HandContainer").queue_free()
-
-# ==============================================================================
-# BOUTONS UI (ACTIONS JOUEUR)
-# ==============================================================================
-
-func _on_btn_miser_pressed():
-	var amount = int(bet_input.value)
-	
-	if amount < current_to_call and amount < my_stack:
-		print("Mise invalide : Vous devez au moins suivre.")
+@rpc("any_peer", "call_local", "reliable")
+func notify_turn(my_turn: bool, to_call: int, can_check_flag: bool):
+	"""Le serveur nous dit si c'est notre tour"""
+	if not is_local_player:
 		return
-
-	if amount <= my_stack:
-		var dealer = get_node("/root/World/Dealer")
-		if dealer:
-			dealer.server_receive_action.rpc_id(1, "BET", amount)
-			action_ui.hide()
+	
+	is_my_turn = my_turn
+	current_to_call = to_call
+	can_check = can_check_flag
+	
+	if my_turn:
+		action_ui.show()
+		info_label.text = "🎯 À VOUS DE JOUER !"
+		
+		# Configurer l'input de mise
+		bet_input.editable = true
+		bet_input.min_value = to_call if to_call > 0 else BIG_BLIND
+		bet_input.max_value = my_stack
+		bet_input.value = to_call if to_call > 0 else 0
+		
+		# Adapter le texte du label
+		if can_check:
+			call_label.text = "✓ Vous pouvez checker"
 		else:
-			print("ERREUR : Dealer introuvable dans la scène !")
+			call_label.text = "À suivre : " + str(to_call) + "$"
+		
+		# Adapter les boutons
+		if can_check:
+			btn_bet.text = "CHECK / MISER"
+		elif to_call >= my_stack:
+			btn_bet.text = "ALL-IN (" + str(my_stack) + "$)"
+		else:
+			btn_bet.text = "SUIVRE / RELANCER"
+		
+	else:
+		action_ui.hide()
+		info_label.text = "⏳ En attente..."
 
-func _on_btn_coucher_pressed():
+@rpc("any_peer", "call_local", "reliable")
+func update_stack(amount: int):
+	"""Met à jour notre stack"""
+	if is_local_player:
+		my_stack = amount
+		stack_label.text = "💰 Stack : " + str(my_stack) + "$"
+		
+		if has_node("UI/ActionButtons/HBoxContainer/BetInput"):
+			bet_input.max_value = my_stack
+
+@rpc("any_peer", "call_local", "reliable")
+func update_pot(amount: int):
+	"""Met à jour l'affichage du pot"""
+	if is_local_player:
+		pot_label.text = "🎲 POT : " + str(amount) + "$"
+
+@rpc("any_peer", "call_local", "reliable")
+func receive_cards(cards: Array):
+	"""Reçoit nos 2 cartes privées"""
+	print("🃏 Cartes reçues : ", cards)
+	
+	# Nettoyer anciennes cartes
+	if has_node("HandContainer"):
+		$HandContainer.queue_free()
+	
+	var hand_container = Node3D.new()
+	hand_container.name = "HandContainer"
+	add_child(hand_container)
+	
+	# TODO: Spawn visuel des cartes devant la caméra
+	# Pour l'instant juste afficher dans le terminal
+	
+	if is_local_player:
+		info_label.text = "🃏 Cartes : " + _card_to_string(cards[0]) + " " + _card_to_string(cards[1])
+
+func _card_to_string(card_id: int) -> String:
+	"""Convertit un ID de carte en texte lisible"""
+	var suits = ["♠", "♥", "♦", "♣"]
+	var ranks = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "V", "D", "R", "A"]
+	
+	var rank = card_id % 13
+	var suit = int(card_id / 13)  # Conversion explicite en int
+	
+	return ranks[rank] + suits[suit]
+
+@rpc("any_peer", "call_local", "reliable")
+func show_hand_to_all(cards: Array):
+	"""Showdown - Affiche les cartes de ce joueur à tous"""
+	# TODO: Spawn visuel au-dessus de la tête
+	print("📢 Joueur ", name, " montre : ", cards)
+
+@rpc("any_peer", "call_local", "reliable")
+func clear_hand_visuals():
+	"""Nettoie les visuels de cartes"""
+	if has_node("HandContainer"):
+		$HandContainer.queue_free()
+	if has_node("ShowdownDisplay"):
+		$ShowdownDisplay.queue_free()
+
+# ==============================================================================
+# ACTIONS JOUEUR
+# ==============================================================================
+
+const BIG_BLIND = 20  # Doit matcher le GameManager
+
+func _on_btn_bet_pressed():
+	"""Bouton Miser/Check/Call/Relancer"""
+	if not is_my_turn:
+		return
+	
+	var bet_amount = int(bet_input.value)
+	var dealer = get_node("/root/World/Dealer")
+	
+	if not dealer:
+		print("❌ Dealer introuvable")
+		return
+	
+	# Déterminer l'action
+	if can_check and bet_amount == 0:
+		# CHECK
+		print("→ Je CHECK")
+		dealer.player_action.rpc_id(1, "CHECK", 0)
+	
+	elif bet_amount == current_to_call:
+		# CALL (suivre)
+		print("→ Je CALL ", bet_amount, "$")
+		dealer.player_action.rpc_id(1, "CALL", bet_amount)
+	
+	else:
+		# BET / RAISE
+		print("→ Je RAISE à ", bet_amount, "$")
+		dealer.player_action.rpc_id(1, "BET", bet_amount)
+	
+	action_ui.hide()
+	info_label.text = "⏳ Action envoyée..."
+
+func _on_btn_fold_pressed():
+	"""Bouton Se Coucher"""
+	if not is_my_turn:
+		return
+	
+	print("→ Je FOLD")
+	
 	var dealer = get_node("/root/World/Dealer")
 	if dealer:
-		dealer.server_receive_action.rpc_id(1, "FOLD", 0)
-		action_ui.hide()
+		dealer.player_action.rpc_id(1, "FOLD", 0)
+	
+	action_ui.hide()
+	info_label.text = "💔 Vous vous êtes couché"
+
+@rpc("any_peer", "call_local", "reliable")
+func hide_start_button():
+	if has_node("UI/StartButton"):
+		$UI/StartButton.queue_free()

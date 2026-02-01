@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://dcg0aprrlldl0" path="res://scripts/world.gd" id="1_f3sb7"]
 [ext_resource type="ArrayMesh" uid="uid://ck1apr6cko8va" path="res://assets/objects/table.obj" id="2_fj7yv"]
+[ext_resource type="Script" uid="uid://dqrhi07a0mk1n" path="res://scripts/game_manager.gd" id="3_4wyf3"]
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_tlwt5"]
 
@@ -33,6 +34,7 @@ mesh = ExtResource("2_fj7yv")
 
 [node name="Dealer" type="Node3D" parent="." unique_id=1347483840]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.8530696, 0.8, 0)
+script = ExtResource("3_4wyf3")
 
 [node name="SpawnPoints" type="Node3D" parent="." unique_id=329985917]
 
