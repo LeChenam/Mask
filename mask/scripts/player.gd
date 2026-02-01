@@ -34,6 +34,7 @@ var is_my_turn = false
 
 # --- CARTES EN MAIN (pour détection clic) ---
 var hand_cards: Array = []  # Références aux cartes Node3D en main
+var is_blinded: bool = false # État aveuglé (Black King)
 
 # ==============================================================================
 # INITIALISATION RÉSEAU
@@ -644,6 +645,13 @@ func receive_cards_masked(cards: Array, cards_masked: Array):
 		# Configurer comme carte en main pour l'interaction
 		if card.has_method("set_as_hand_card"):
 			card.set_as_hand_card(is_local_player)
+		
+		# Si le joueur est aveuglé, cacher la carte
+		var local_id = multiplayer.get_unique_id()
+		var player_node = get_node_or_null("../PlayerContainer/" + str(local_id))
+		if player_node and "is_blinded" in player_node and player_node.is_blinded:
+			if card.has_method("set_blind_view"):
+				card.set_blind_view(true)
 		
 		# Révéler uniquement pour le joueur local
 		if is_local_player and card.has_method("reveal"):
@@ -1306,18 +1314,30 @@ func set_blinded(enabled: bool):
 	if not is_local_player:
 		return
 	
+	is_blinded = enabled
+	
+	# Mettre à jour les cartes sur la table
+	var card_container = get_node_or_null("../CardContainer")
+	if card_container:
+		for card in card_container.get_children():
+			if card.has_method("set_blind_view"):
+				card.set_blind_view(enabled)
+	
 	if enabled:
 		info_label.text = "🌑 VOUS ÊTES AVEUGLÉ!"
 		# Visual overlay
 		var blind_overlay = ColorRect.new()
 		blind_overlay.name = "BlindOverlay"
-		blind_overlay.color = Color(0.1, 0, 0.1, 0.8)
+		blind_overlay.color = Color(0.1, 0, 0.1, 0.4) # Moins opaque car les cartes sont cachées
 		blind_overlay.position = Vector2(200, 400)
 		blind_overlay.size = Vector2(240, 100)
 		$UI.add_child(blind_overlay)
 		
 		var blind_label = Label.new()
-		blind_label.text = "👁️ BLINDED\nYou cannot see community cards"
+		blind_label.text = "👁️ BLINDED"
+		blind_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		blind_label.position = Vector2(20, 20)
+		blind_overlay.add_child(blind_label)
 		blind_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		blind_label.position = Vector2(20, 20)
 		blind_overlay.add_child(blind_label)

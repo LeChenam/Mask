@@ -721,7 +721,6 @@ func request_activate_mask_effect_targeted(card_id: int, target_id: int):
 		return
 	
 	print("\n🎭 ACTIVATION EFFET MAIN: ", info.name, " par joueur ", activator_id, " cible: ", target_id)
-	_announce_to_all("🎭 " + info.name + " activated!")
 	
 	var is_red = info.color == MaskEffects.HeadCardColor.RED
 	var rank = info.rank
@@ -776,14 +775,15 @@ func _hand_effect_red_jack(activator_id: int, target_id: int = -1):
 		var card_str = _card_to_string(revealed_card)
 		
 		# Envoyer la carte révélée uniquement à l'activateur
-		# _send_effect_result(activator_id, "👁️ Joueur " + str(target_id) + " a: " + card_str)
-		
 		var activator_node = get_node("../PlayerContainer/" + str(activator_id))
 		if activator_node:
 			activator_node.show_revealed_card_ui.rpc_id(activator_id, target_id, revealed_card)
 			activator_node.trigger_horror_effect.rpc_id(activator_id, "jack_red_eye")
-			
-		_announce_to_all("👁️ " + _get_player_name(activator_id) + " a inspecté une carte de " + _get_player_name(target_id))
+		
+		# Envoyer "Je te vois" seulement à la cible
+		var target_node = get_node("../PlayerContainer/" + str(target_id))
+		if target_node:
+			target_node.show_effect_result.rpc_id(target_id, "👁️ Je te vois...")
 
 func _hand_effect_red_queen(activator_id: int, target_id: int = -1):
 	"""Dame Rouge - Voler 50 jetons à un joueur"""
@@ -811,9 +811,14 @@ func _hand_effect_red_queen(activator_id: int, target_id: int = -1):
 	_update_player_display(target_id)
 	_update_player_display(activator_id)
 	
+	# Message privé à l'activateur
 	var msg = "🩸 Vous avez volé " + str(steal_amount) + "$ à " + _get_player_name(target_id)
 	_send_effect_result(activator_id, msg)
-	_announce_to_all("🩸 " + _get_player_name(activator_id) + " vole " + str(steal_amount) + "$ à " + _get_player_name(target_id))
+	
+	# Message privé à la cible
+	var target_node = get_node("../PlayerContainer/" + str(target_id))
+	if target_node:
+		target_node.show_effect_result.rpc_id(target_id, "🩸 On vous a volé " + str(steal_amount) + "$!")
 
 func _hand_effect_red_king(activator_id: int, target_id: int = -1):
 	"""Roi Rouge - Forcer un pacte de partage des gains"""
@@ -836,9 +841,14 @@ func _hand_effect_red_king(activator_id: int, target_id: int = -1):
 	
 	active_pacts.append({"from": activator_id, "to": target_id})
 	
+	# Message privé à l'activateur
 	var msg = "🤝 Pacte forcé avec " + _get_player_name(target_id) + " - Gains partagés!"
 	_send_effect_result(activator_id, msg)
-	_announce_to_all("🤝 PACTE: " + _get_player_name(activator_id) + " et " + _get_player_name(target_id) + " partagent les gains!")
+	
+	# Message privé à la cible
+	var target_node = get_node("../PlayerContainer/" + str(target_id))
+	if target_node:
+		target_node.show_effect_result.rpc_id(target_id, "🤝 Vous êtes forcé dans un PACTE! Gains partagés!")
 
 # --- EFFETS DE MAIN NOIRS ---
 
@@ -871,7 +881,6 @@ func _hand_effect_black_jack(activator_id: int, card_to_swap_id: int = -1):
 			player_node.receive_cards_masked.rpc_id(activator_id, new_cards, new_masked)
 			
 			_send_effect_result(activator_id, "🌀 Carte échangée! Nouvelle carte: " + _card_to_string(new_card))
-			_announce_to_all("🌀 " + _get_player_name(activator_id) + " a échangé une carte!")
 	else:
 		_send_effect_result(activator_id, "❌ Le deck est vide!")
 
@@ -903,8 +912,13 @@ func _hand_effect_black_queen(activator_id: int, target_id: int = -1):
 				highest_card = card
 		
 		var card_str = _card_to_string(highest_card)
+		# Message privé à l'activateur
 		_send_effect_result(activator_id, "⚖️ " + _get_player_name(target_id) + " a comme carte haute: " + card_str)
-		_announce_to_all("⚖️ " + _get_player_name(target_id) + " révèle sa carte haute: " + card_str)
+		
+		# Message privé à la cible
+		var target_node = get_node("../PlayerContainer/" + str(target_id))
+		if target_node:
+			target_node.show_effect_result.rpc_id(target_id, "⚖️ Vous devez révéler votre carte haute: " + card_str)
 
 func _hand_effect_black_king(activator_id: int, target_id: int = -1):
 	"""Roi Noir - Aveugler un joueur (ne voit plus les cartes communes)"""
@@ -931,8 +945,13 @@ func _hand_effect_black_king(activator_id: int, target_id: int = -1):
 	if player_node.has_method("set_blinded"):
 		player_node.set_blinded.rpc_id(target_id, true)
 	
+	# Message privé à l'activateur
 	_send_effect_result(activator_id, "🌑 " + _get_player_name(target_id) + " est aveuglé!")
-	_announce_to_all("🌑 " + _get_player_name(target_id) + " a été AVEUGLÉ!")
+	
+	# Message privé à la cible
+	var target_node = get_node("../PlayerContainer/" + str(target_id))
+	if target_node:
+		target_node.show_effect_result.rpc_id(target_id, "🌑 Vous avez été AVEUGLÉ par les ténèbres!")
 
 func _check_voile_protection(target_id: int, attacker_id: int) -> bool:
 	"""Vérifie si la cible a le Masque Voilé actif"""
@@ -1286,6 +1305,13 @@ func _spawn_table_card_masked(card_val: int, index: int, is_masked: bool):
 	# Configurer comme carte de table
 	if card.has_method("set_as_table_card"):
 		card.set_as_table_card()
+	
+	# Si le joueur est aveuglé, cacher la carte
+	var local_id = multiplayer.get_unique_id()
+	var player_node = get_node_or_null("../PlayerContainer/" + str(local_id))
+	if player_node and "is_blinded" in player_node and player_node.is_blinded:
+		if card.has_method("set_blind_view"):
+			card.set_blind_view(true)
 	
 	# Révéler la carte (sauf si Masque de l'Aveugle actif)
 	if not community_hidden and card.has_method("reveal"):

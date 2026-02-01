@@ -204,6 +204,8 @@ func reveal():
 		mesh_face.visible = true
 	if mesh_dos:
 		mesh_dos.visible = false
+	
+	# Si aveuglé, on reste caché par le mesh_blind, mais l'état logique est 'révélé'
 	print("🃏 Carte révélée (ID: ", card_id, ", Masquée: ", is_masked, ")")
 
 func hide_face():
@@ -220,6 +222,38 @@ func flip():
 		hide_face()
 	else:
 		reveal()
+
+# ============================================================================
+# EFFET AVEUGLEMENT (BLACK KING)
+# ============================================================================
+
+var mesh_blind: MeshInstance3D
+
+func set_blind_view(enabled: bool):
+	"""Active ou désactive la vue aveuglée (carte noire)"""
+	if not mesh_blind:
+		_create_blind_mesh()
+	
+	mesh_blind.visible = enabled
+
+func _create_blind_mesh():
+	"""Crée un mesh noir qui couvre la carte"""
+	if mesh_blind: return
+	
+	var blind = MeshInstance3D.new()
+	blind.name = "MeshBlind"
+	var quad = QuadMesh.new()
+	quad.size = Vector2(0.72, 1.02) # Légèrement plus grand pour couvrir
+	blind.mesh = quad
+	blind.position = Vector3(0, 0, 0.02) # Devant tout
+	add_child(blind)
+	mesh_blind = blind
+	
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.05, 0.05, 0.05) # Noir pas total pour relief
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mesh_blind.material_override = mat
+	mesh_blind.visible = false
 
 # ============================================================================
 # INTERACTION SOURIS (pour cartes masquées en main)
