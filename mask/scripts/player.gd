@@ -36,37 +36,57 @@ func _enter_tree():
 	var player_id = name.to_int()
 	set_multiplayer_authority(player_id)
 	is_local_player = (player_id == multiplayer.get_unique_id())
+	
+	# IMPORTANT: Désactiver immédiatement la caméra si ce n'est pas notre joueur
+	# Cela évite la désynchronisation quand plusieurs joueurs sont spawnés
+	if not is_local_player:
+		var cam = get_node_or_null("Head/Camera3D")
+		if cam:
+			cam.current = false
 
 func _ready():
+	# Désactiver d'abord TOUTES les caméras des autres joueurs
+	if not is_local_player:
+		if camera:
+			camera.current = false
+		_setup_remote_player()
+		return  # Sortir tôt pour les non-locaux
+	
 	await get_tree().process_frame
 	
-	if is_local_player:
-		print("✓ Joueur local initialisé (ID ", multiplayer.get_unique_id(), ")")
-		
-		# Caméra
-		if camera: 
-			camera.make_current()
-		
-		# Souris
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		
-		# Connexion boutons
-		btn_bet.pressed.connect(_on_btn_bet_pressed)
-		btn_fold.pressed.connect(_on_btn_fold_pressed)
-		
-		# UI initiale
-		action_ui.hide()
-		info_label.text = "En attente de joueurs..."
-		
-		# Afficher le bouton START si on est le premier joueur
-		if multiplayer.get_unique_id() == 1:
-			_create_start_button()
-	else:
-		# Désactiver pour les autres joueurs
-		if camera: camera.current = false
-		set_physics_process(false)
-		set_process_unhandled_input(false)
-		if has_node("UI"): $UI.queue_free()
+	# À ce stade, on est sûr que c'est le joueur local
+	print("✓ Joueur local initialisé (ID ", multiplayer.get_unique_id(), ")")
+	
+	# Caméra - S'assurer qu'elle est bien active
+	if camera: 
+		camera.current = true
+		camera.make_current()
+		print("✓ Caméra activée pour joueur local")
+	
+	# Souris
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	
+	# Connexion boutons
+	btn_bet.pressed.connect(_on_btn_bet_pressed)
+	btn_fold.pressed.connect(_on_btn_fold_pressed)
+	
+	# UI initiale
+	action_ui.hide()
+	info_label.text = "En attente de joueurs..."
+	
+	# Afficher le bouton START si on est le premier joueur
+	if multiplayer.get_unique_id() == 1:
+		_create_start_button()
+
+
+# Appelé pour les joueurs distants seulement - désactive leur processing
+func _setup_remote_player():
+	if camera:
+		camera.current = false
+	set_physics_process(false)
+	set_process_unhandled_input(false)
+	if has_node("UI"):
+		$UI.queue_free()
 
 # ==============================================================================
 # ANIMATIONS
