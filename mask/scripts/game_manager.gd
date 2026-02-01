@@ -185,6 +185,10 @@ func _initialize_players():
 		# Sync le stack initial
 		player_node.update_stack.rpc(1000)
 		
+		# Sync le nom si connu (fix host name bug)
+		if player_names.has(peer_id):
+			player_node.set_player_name.rpc(player_names[peer_id])
+		
 		print("→ Joueur ", peer_id, " ajouté (Stack: 1000)")
 	
 	print("✓ Table initialisée : ", all_players.size(), " joueur(s)")

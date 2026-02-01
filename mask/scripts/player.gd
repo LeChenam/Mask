@@ -171,8 +171,8 @@ func mark_card_used(card_id: int):
 		if card.card_id == card_id:
 			card.effect_used = true
 			# Feedback visuel (griser la carte)
-			if card.mesh_face:
-				card.mesh_face.modulate = Color(0.5, 0.5, 0.5) # Griser
+			if card.mesh_face and card.mesh_face.material_override:
+				card.mesh_face.material_override.albedo_color = Color(0.5, 0.5, 0.5) # Griser
 			if is_local_player:
 				info_label.text = "🎭 Effet utilisé!"
 			return
