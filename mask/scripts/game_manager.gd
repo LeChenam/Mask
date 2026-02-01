@@ -677,7 +677,28 @@ func request_activate_mask_effect_targeted(card_id: int, target_id: int):
 		print("⚠ Carte ", card_id, " n'est pas masquée")
 		_send_effect_result(activator_id, "⚠ Cette carte n'est pas masquée!")
 		return
-		
+	
+	# VÉRIFICATION TOUR DE JEU
+	# On doit être en phase de pari (FLOP, TURN, RIVER, ou PREFLOP si on veut)
+	var allowed_phases = [GamePhase.PRE_FLOP, GamePhase.FLOP, GamePhase.TURN, GamePhase.RIVER]
+	if current_phase not in allowed_phases:
+		_send_effect_result(activator_id, "⚠ Attendez une phase de pari !")
+		return
+
+	# Vérifier si c'est le tour du joueur (Sauf si Masque Affamé ?)
+	# Note: active_players contient les joueurs non couchés.
+	var current_actor_id = -1
+	if active_players.size() > 0 and current_player_index < active_players.size():
+		current_actor_id = active_players[current_player_index]
+	
+	if activator_id != current_actor_id:
+		_send_effect_result(activator_id, "⚠ Ce n'est pas votre tour !")
+		return
+
+	# Vérifier protection
+	if _check_voile_protection(activator_id, activator_id): # Auto-protection? Non, Voile protege contre CIBLAGE externe
+		pass # Le Voile ne bloque pas ses propres effets
+	
 	# VÉRIFICATION USAGE UNIQUE
 	if not used_hand_effects.has(activator_id):
 		used_hand_effects[activator_id] = []
@@ -1154,11 +1175,10 @@ func _deal_flop():
 			print("  🎭 Carte TABLE masquée: ", _card_to_string(card))
 	
 	await _show_community_cards()
+
 	
-	# Appliquer les effets de table des cartes masquées
-	for card in new_cards:
-		if masked_cards.get(card, false):
-			await _apply_table_effect(card)
+	# Appliquer les effets de table des cartes masquées (Séquentiel)
+	await _process_table_effects_sequential(new_cards)
 	
 	await get_tree().create_timer(1.0).timeout
 	_start_betting_round()
@@ -1182,9 +1202,8 @@ func _deal_turn():
 	
 	await _show_community_cards()
 	
-	# Appliquer l'effet de table si masquée
-	if masked_cards.get(card, false):
-		await _apply_table_effect(card)
+	# Appliquer l'effet de table si masquée (Séquentiel)
+	await _process_table_effects_sequential([card])
 	
 	await get_tree().create_timer(1.0).timeout
 	_start_betting_round()
@@ -1209,11 +1228,24 @@ func _deal_river():
 	await _show_community_cards()
 	
 	# Appliquer l'effet de table si masquée
-	if masked_cards.get(card, false):
-		await _apply_table_effect(card)
+	await _process_table_effects_sequential([card])
 	
 	await get_tree().create_timer(1.0).timeout
 	_start_betting_round()
+
+func _process_table_effects_sequential(cards: Array):
+	"""Traite les effets de table un par un avec délai"""
+	for card in cards:
+		if masked_cards.get(card, false):
+			var info = MaskEffects.get_face_card_info(card)
+			if not info.is_empty():
+				_announce_to_all("🎭 Activation effet : " + info.name)
+				# await get_tree().create_timer(5.0).timeout
+				
+				await _apply_table_effect(card)
+				
+				# Petite pause après l'effet
+				await get_tree().create_timer(2.0).timeout
 
 func _show_community_cards():
 	"""Affiche les cartes communes sur la table (avec masques)"""

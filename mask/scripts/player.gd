@@ -700,7 +700,7 @@ func _try_activate_card_effect(card):
 		_show_target_selection_ui(card.card_id)
 	else:
 		# Effet sans cible - activer directement
-		card.effect_used = true
+		# card.effect_used = true # Ne pas marquer utilisé tant que le serveur n'a pas validé !
 		_send_effect_activation(card.card_id, -1)
 
 func _effect_needs_target(card_id: int) -> bool:
@@ -802,7 +802,7 @@ func _show_target_selection_ui(card_id: int):
 func _on_target_selected(target_id: int):
 	"""Une cible a été sélectionnée"""
 	if pending_card_effect:
-		pending_card_effect.effect_used = true
+		# pending_card_effect.effect_used = true # Ne pas marquer utilisé tant que le serveur n'a pas validé !
 		_send_effect_activation(pending_card_effect.card_id, target_id)
 		pending_card_effect = null
 	
