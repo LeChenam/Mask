@@ -234,26 +234,32 @@ func set_blind_view(enabled: bool):
 	if not mesh_blind:
 		_create_blind_mesh()
 	
-	mesh_blind.visible = enabled
+	if mesh_blind:
+		mesh_blind.visible = enabled
+		print("🌑 Blind view ", "activé" if enabled else "désactivé", " pour carte ", card_id)
 
 func _create_blind_mesh():
 	"""Crée un mesh noir qui couvre la carte"""
-	if mesh_blind: return
+	if mesh_blind: 
+		return
 	
 	var blind = MeshInstance3D.new()
 	blind.name = "MeshBlind"
 	var quad = QuadMesh.new()
-	quad.size = Vector2(0.72, 1.02) # Légèrement plus grand pour couvrir
+	quad.size = Vector2(0.75, 1.05) # Plus grand pour bien couvrir
 	blind.mesh = quad
-	blind.position = Vector3(0, 0, 0.02) # Devant tout
+	blind.position = Vector3(0, 0, 0.1) # Bien devant tout
 	add_child(blind)
 	mesh_blind = blind
 	
 	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.05, 0.05, 0.05) # Noir pas total pour relief
+	mat.albedo_color = Color(0.0, 0.0, 0.0, 1.0) # Noir total
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mesh_blind.material_override = mat
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED # Visible des deux côtés
+	blind.material_override = mat
 	mesh_blind.visible = false
+	
+	print("✓ Mesh blind créé pour carte ", card_id)
 
 # ============================================================================
 # INTERACTION SOURIS (pour cartes masquées en main)

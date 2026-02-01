@@ -646,13 +646,6 @@ func receive_cards_masked(cards: Array, cards_masked: Array):
 		if card.has_method("set_as_hand_card"):
 			card.set_as_hand_card(is_local_player)
 		
-		# Si le joueur est aveuglé, cacher la carte
-		var local_id = multiplayer.get_unique_id()
-		var player_node = get_node_or_null("../PlayerContainer/" + str(local_id))
-		if player_node and "is_blinded" in player_node and player_node.is_blinded:
-			if card.has_method("set_blind_view"):
-				card.set_blind_view(true)
-		
 		# Révéler uniquement pour le joueur local
 		if is_local_player and card.has_method("reveal"):
 			card.reveal()
@@ -1310,37 +1303,38 @@ func apply_darkness_effect(enabled: bool):
 
 @rpc("any_peer", "call_local", "reliable")
 func set_blinded(enabled: bool):
-	"""Empêche le joueur de voir les cartes communes"""
+	"""Empêche le joueur de voir les cartes communes existantes (mais pas les nouvelles)"""
 	if not is_local_player:
 		return
 	
+	print("🌑 set_blinded appelé avec enabled=", enabled, " pour joueur ", multiplayer.get_unique_id())
+	
 	is_blinded = enabled
 	
-	# Mettre à jour les cartes sur la table
-	var card_container = get_node_or_null("../CardContainer")
-	if card_container:
-		for card in card_container.get_children():
-			if card.has_method("set_blind_view"):
-				card.set_blind_view(enabled)
-	
 	if enabled:
-		info_label.text = "🌑 VOUS ÊTES AVEUGLÉ!"
-		# Visual overlay
-		var blind_overlay = ColorRect.new()
-		blind_overlay.name = "BlindOverlay"
-		blind_overlay.color = Color(0.1, 0, 0.1, 0.4) # Moins opaque car les cartes sont cachées
-		blind_overlay.position = Vector2(200, 400)
-		blind_overlay.size = Vector2(240, 100)
-		$UI.add_child(blind_overlay)
+		# Cacher uniquement les cartes ACTUELLEMENT sur la table
+		var card_container = get_node_or_null("../CardContainer")
+		print("🌑 CardContainer trouvé: ", card_container != null)
+		if card_container:
+			var card_count = card_container.get_child_count()
+			print("🌑 Nombre de cartes à cacher: ", card_count)
+			for card in card_container.get_children():
+				print("🌑 Tentative de cacher carte: ", card.name)
+				if card.has_method("set_blind_view"):
+					card.set_blind_view(true)
+					# Marquer cette carte comme "cachée par le blind" pour ne pas la révéler plus tard
+					card.set_meta("blinded_by_effect", true)
+					print("✓ Carte cachée avec succès")
+				else:
+					print("❌ La carte n'a pas la méthode set_blind_view")
 		
-		var blind_label = Label.new()
-		blind_label.text = "👁️ BLINDED"
-		blind_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		blind_label.position = Vector2(20, 20)
-		blind_overlay.add_child(blind_label)
-		blind_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		blind_label.position = Vector2(20, 20)
-		blind_overlay.add_child(blind_label)
+		info_label.text = "🌑 VOUS ÊTES AVEUGLÉ!"
 	else:
-		if has_node("UI/BlindOverlay"):
-			$UI/BlindOverlay.queue_free()
+		# Débloquer toutes les cartes
+		var card_container = get_node_or_null("../CardContainer")
+		if card_container:
+			for card in card_container.get_children():
+				if card.has_method("set_blind_view"):
+					card.set_blind_view(false)
+					if card.has_meta("blinded_by_effect"):
+						card.remove_meta("blinded_by_effect")

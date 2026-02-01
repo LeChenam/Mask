@@ -371,7 +371,7 @@ func start_new_hand():
 	# Phase 1: Annonce du masque du croupier (sauf manche 1)
 	if current_round_number > 1:
 		await _announce_dealer_mask()
-		await get_tree().create_timer(2.0).timeout
+		await get_tree().create_timer(4.0).timeout
 		
 		# Phase 2: Shop des masques
 		await _start_shop_phase()
@@ -412,7 +412,7 @@ func _announce_dealer_mask():
 	if dealer_current_mask == MaskEffects.DealerMask.NONE:
 		print("\n👹 CROUPIER: Je ne porte pas de masque cette manche...")
 		_announce_to_all("👹 The Dealer wears... nothing.")
-		await get_tree().create_timer(1.0).timeout
+		await get_tree().create_timer(3.0).timeout
 		_announce_to_all("'Play fairly... for now.'")
 	else:
 		var mask_info = MaskEffects.get_dealer_mask_info(dealer_current_mask)
@@ -421,7 +421,7 @@ func _announce_dealer_mask():
 		
 		# Annoncer à tous les joueurs
 		_announce_to_all("👹 The Dealer wears: " + mask_info.name_en)
-		await get_tree().create_timer(1.0).timeout
+		await get_tree().create_timer(3.0).timeout
 		_announce_to_all(mask_info.announcement)
 
 func _start_shop_phase():
@@ -1306,12 +1306,9 @@ func _spawn_table_card_masked(card_val: int, index: int, is_masked: bool):
 	if card.has_method("set_as_table_card"):
 		card.set_as_table_card()
 	
-	# Si le joueur est aveuglé, cacher la carte
-	var local_id = multiplayer.get_unique_id()
-	var player_node = get_node_or_null("../PlayerContainer/" + str(local_id))
-	if player_node and "is_blinded" in player_node and player_node.is_blinded:
-		if card.has_method("set_blind_view"):
-			card.set_blind_view(true)
+	# Note: Ne plus cacher automatiquement les cartes pour les joueurs blindés
+	# Les nouvelles cartes (turn, river) restent visibles
+	# Seules les cartes existantes au moment du blind sont cachées
 	
 	# Révéler la carte (sauf si Masque de l'Aveugle actif)
 	if not community_hidden and card.has_method("reveal"):
