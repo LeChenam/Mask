@@ -2,8 +2,6 @@
 
 [ext_resource type="Script" path="res://scripts/Game/card.gd" id="card_script"]
 
-[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_nxf5b"]
-
 [sub_resource type="BoxMesh" id="BoxMesh_face"]
 size = Vector3(0.15, 0.22, 0.002)
 
@@ -28,6 +26,3 @@ surface_material_override/0 = SubResource("Material_face")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.002)
 mesh = SubResource("BoxMesh_dos")
 surface_material_override/0 = SubResource("Material_dos")
-
-[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=1843628164]
-replication_config = SubResource("SceneReplicationConfig_nxf5b")

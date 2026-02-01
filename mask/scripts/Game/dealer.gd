@@ -18,6 +18,7 @@ var current_round_bets = {} # {peer_id: mise_actuelle_dans_ce_tour}
 var highest_bet = 0
 var turn_index = 0
 var last_raiser_index = -1 # Pour savoir quand le tour de table est fini
+var players_acted_this_round = {} # {player_id: bool} - Joueurs ayant joué ce tour
 
 # Système de Blinds
 var dealer_button_index = 0  # Position du dealer (tourne à chaque manche)
@@ -36,7 +37,10 @@ func request_start_game():
 	
 	var players_in_world = get_node("../PlayerContainer").get_children()
 	if players_in_world.size() < 3:
-		print("DEALER : Besoin d'au moins 3 joueurs pour commencer (max 5)")
+		print("DEALER : Besoin d'au moins 3 joueurs pour commencer")
+		return
+	if players_in_world.size() > 5:
+		print("DEALER : Maximum 5 joueurs autorisés")
 		return
 	
 	print("DEALER : Démarrage de la partie !")
@@ -90,6 +94,11 @@ func start_phase_pre_flop():
 	
 	# Prise des blinds
 	collect_blinds()
+	
+	# Initialiser le tracking des joueurs pour ce tour de mises
+	players_acted_this_round.clear()
+	for id in active_players:
+		players_acted_this_round[id] = false
 	
 	# Le joueur après la Big Blind commence
 	var sb_index = (dealer_button_index + 1) % active_players.size()
@@ -153,11 +162,13 @@ func reset_betting_round():
 	"""Reset pour un nouveau tour de mises"""
 	current_round_bets.clear()
 	highest_bet = 0
+	players_acted_this_round.clear()
 	
 	# Init des mises à 0 pour les joueurs actifs (non-couchés)
 	for id in active_players:
 		if id not in folded_players:
 			current_round_bets[id] = 0
+			players_acted_this_round[id] = false
 	
 	# Premier joueur après le dealer
 	turn_index = (dealer_button_index + 1) % active_players.size()
@@ -196,6 +207,7 @@ func server_receive_action(type: String, value: int):
 func handle_fold(player_id: int):
 	"""Gère un joueur qui se couche"""
 	folded_players.append(player_id)
+	players_acted_this_round[player_id] = true
 	get_node("../PlayerContainer/" + str(player_id)).notify_turn.rpc_id(player_id, false)
 
 	
@@ -227,11 +239,16 @@ func handle_bet(player_id: int, amount: int):
 	player_stacks[player_id] -= amount
 	current_round_bets[player_id] = current_round_bets.get(player_id, 0) + amount
 	pot += amount
+	players_acted_this_round[player_id] = true
 	
 	# Est-ce une relance ?
 	if current_round_bets[player_id] > highest_bet:
 		highest_bet = current_round_bets[player_id]
 		last_raiser_index = turn_index
+		# Si quelqu'un relance, les autres doivent rejouer
+		for id in active_players:
+			if id not in folded_players and id != player_id:
+				players_acted_this_round[id] = false
 	
 	sync_stack(player_id)
 	sync_pot()
@@ -244,6 +261,7 @@ func handle_check(player_id: int):
 		print("DEALER : Check impossible - il y a une mise à suivre")
 		return
 	
+	players_acted_this_round[player_id] = true
 	advance_to_next_player()
 
 func advance_to_next_player():
@@ -265,21 +283,20 @@ func advance_to_next_player():
 
 func is_betting_round_complete() -> bool:
 	"""Vérifie si tous les joueurs ont égalisé ou sont all-in"""
-	var active_remaining = []
+	# D'abord, vérifier que tous les joueurs actifs ont joué au moins une fois
 	for id in active_players:
 		if id not in folded_players:
-			active_remaining.append(id)
+			if not players_acted_this_round.get(id, false):
+				return false
 	
-	# Si personne n'a misé et on est revenu au premier joueur
-	if last_raiser_index == -1:
-		# Tout le monde a check
-		var first_active_index = (dealer_button_index + 1) % active_players.size()
-		while active_players[first_active_index] in folded_players:
-			first_active_index = (first_active_index + 1) % active_players.size()
-		return turn_index == first_active_index
+	# Ensuite, vérifier que toutes les mises sont égales
+	for id in active_players:
+		if id not in folded_players:
+			# Si le joueur n'a pas égalisé et n'est pas all-in
+			if current_round_bets.get(id, 0) < highest_bet and player_stacks.get(id, 0) > 0:
+				return false
 	
-	# Si on revient au dernier relanceur
-	return turn_index == last_raiser_index
+	return true
 
 func proceed_to_next_phase():
 	"""Passe à la phase suivante du jeu"""

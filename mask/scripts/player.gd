@@ -90,7 +90,7 @@ func _unhandled_input(event):
 # LOGIQUE POKER - RPC (Reçus du Serveur)
 # ==============================================================================
 
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func notify_turn(is_my_turn: bool, amount_to_call: int = 0):
 	print("PLAYER RPC : notify_turn reçu - is_local_player=", is_local_player, " is_my_turn=", is_my_turn)
 	if not is_local_player: return
@@ -119,7 +119,7 @@ func notify_turn(is_my_turn: bool, amount_to_call: int = 0):
 		if is_instance_valid(info_label):
 			info_label.text = "Le voisin réfléchit..."
 
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func update_stack(new_amount: int):
 	print("PLAYER RPC : update_stack reçu - is_local_player=", is_local_player, " amount=", new_amount)
 	if not is_local_player: return
@@ -130,7 +130,7 @@ func update_stack(new_amount: int):
 	if is_instance_valid(bet_input):
 		bet_input.max_value = my_stack
 
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func update_pot(amount: int):
 	print("PLAYER RPC : update_pot reçu - is_local_player=", is_local_player, " pot=", amount)
 	if not is_local_player: return
@@ -138,7 +138,7 @@ func update_pot(amount: int):
 	if is_instance_valid(pot_label):
 		pot_label.text = "POT : " + str(amount) + "$"
 
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func receive_cards(cards: Array):
 	print("Cartes reçues : ", cards)
 	
@@ -171,7 +171,7 @@ func receive_cards(cards: Array):
 		if card_obj.has_method("reveal"):
 			card_obj.reveal()
 
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func show_hand_to_all(cards: Array):
 	# Affiche les cartes au-dessus de la tête du joueur pour le Showdown
 	if has_node("ShowdownDisplay"): get_node("ShowdownDisplay").queue_free()
@@ -194,7 +194,7 @@ func show_hand_to_all(cards: Array):
 			
 		current_x += spacing
 
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func clear_hand_visuals():
 	if has_node("ShowdownDisplay"): get_node("ShowdownDisplay").queue_free()
 	if has_node("HandContainer"): get_node("HandContainer").queue_free()
