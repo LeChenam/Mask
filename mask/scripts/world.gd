@@ -78,6 +78,9 @@ func _on_player_joined(peer_id: int):
 	if not NetworkManager.is_server(): return
 	print("WORLD : Nouveau joueur ", peer_id, " -> Spawn")
 	_spawn_player(peer_id)
+	
+	await get_tree().create_timer(0.5).timeout
+	_broadcast_global_sound("player_hello", 0.8)
 
 func _on_player_left(peer_id: int):
 	if not NetworkManager.is_server(): return
@@ -93,3 +96,10 @@ func _on_player_left(peer_id: int):
 func _on_server_disconnected():
 	print("WORLD : Serveur perdu, retour au lobby")
 	get_tree().change_scene_to_file("res://scenes/lobby.tscn")
+
+func _broadcast_global_sound(sound_name: String, pitch: float = 1.0):
+	"""Parcourt tous les joueurs et leur demande de jouer le son via RPC"""
+	for player in player_container.get_children():
+		# On vérifie que le script Player a bien la méthode (ce qui est le cas grâce à ton code précédent)
+		if player.has_method("play_remote_sound"):
+			player.play_remote_sound.rpc(sound_name, pitch)

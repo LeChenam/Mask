@@ -91,6 +91,8 @@ func deal_community(count):
 		community_cards.append(card_val)
 		# Passer l'index pour le positionnement correct
 		spawn_community_card.rpc(card_val, community_cards.size() - 1)
+		
+		AudioManager.play("SlideCards")
 
 func reset_betting_round():
 	current_round_bets.clear()
@@ -233,3 +235,5 @@ func spawn_community_card(card_val: int, card_index: int):
 	card.scale = Vector3(1.5, 1.5, 1.5)  # Plus grand pour voir sur la table
 	
 	print("🃏 Carte flop spawned: ", card_val, " à position: ", card.position)
+	
+	AudioManager.play("SlideCards")

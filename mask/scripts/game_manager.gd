@@ -184,7 +184,8 @@ func request_start_game():
 	for peer_id in all_players:
 		var player_node = get_node("../PlayerContainer/" + str(peer_id))
 		player_node.hide_start_button.rpc()
-
+	
+	_broadcast_sound("scary_laugh", 0.85)
 	start_new_hand()
 
 # ==============================================================================
@@ -199,6 +200,10 @@ func start_new_hand():
 	print("\n┌─────────────────────────────┐")
 	print("│   NOUVELLE MAIN - PRE-FLOP  │")
 	print("└─────────────────────────────┘")
+	
+	_broadcast_sound("shuffle", 0.75)
+	await get_tree().create_timer(0.5).timeout
+	_broadcast_sound("scary_letsplay", 0.9)
 	
 	# Reset
 	current_phase = GamePhase.PRE_FLOP
@@ -451,6 +456,8 @@ func _spawn_table_card(card_val: int, index: int):
 	card.rotation_degrees = Vector3(-90, 0, 0)  # Face vers le haut (table)
 	card.scale = Vector3(0.25, 0.25, 0.25)  # Taille visible sur la table
 	
+	AudioManager.play("card_slide", true, 0.8)
+	
 	print("🃏 Carte table spawned: ", card_val, " index: ", index, " pos: ", card.position)
 
 # ==============================================================================
@@ -488,9 +495,11 @@ func _handle_fold(peer_id: int):
 	folded_players.append(peer_id)
 	active_players.erase(peer_id)
 	print("  → Joueur ", peer_id, " se couche")
+	_broadcast_sound("fold_rustle", 0.9)
 
 func _handle_check(peer_id: int):
 	print("  → Joueur ", peer_id, " check")
+	_broadcast_sound("check_knock", 0.7)
 
 func _handle_call(peer_id: int):
 	var to_call = highest_bet - current_bets.get(peer_id, 0)
@@ -501,6 +510,8 @@ func _handle_call(peer_id: int):
 	pot += actual_call
 	
 	print("  → Joueur ", peer_id, " suit pour ", actual_call, "$")
+	
+	_broadcast_sound("chips_stack", 0.85)
 	
 	_update_player_display(peer_id)
 
@@ -516,9 +527,11 @@ func _handle_bet(peer_id: int, amount: int):
 		highest_bet = current_bets[peer_id]
 		last_aggressor_index = current_player_index
 		print("  → Joueur ", peer_id, " relance à ", highest_bet, "$")
+		_broadcast_sound("chips_stack", 0.7)
 	else:
 		print("  → Joueur ", peer_id, " mise ", additional_amount, "$")
-	
+		_broadcast_sound("chips_stack", 0.8)
+
 	_update_player_display(peer_id)
 
 func _update_player_display(peer_id: int):
@@ -625,3 +638,13 @@ func _clear_table_cards():
 	for child in card_container.get_children():
 		child.queue_free()
 	print("🧹 Table nettoyée")
+
+func _broadcast_sound(sound_name: String, pitch: float = 1.0):
+	"""Ordonne à tous les clients de jouer un son via leur AudioManager local"""
+	for peer_id in all_players:
+		# On cherche le nœud du joueur dans le monde
+		var player_node = get_node_or_null("../PlayerContainer/" + str(peer_id))
+
+		# Si le joueur existe, on appelle sa fonction RPC (qu'on a ajoutée dans Player.gd)
+		if player_node and player_node.has_method("play_remote_sound"):
+			player_node.play_remote_sound.rpc(sound_name, pitch)

@@ -7,6 +7,9 @@ extends CharacterBody3D
 @export var sensitivity = 0.003
 @onready var camera = $Head/Camera3D
 
+# -- Variables Son ---
+@onready var heartbeat_player = $HeartBeatPlayer
+
 # --- VARIABLES DE POKER & UI ---
 @onready var action_ui = $UI/ActionButtons
 @onready var info_label = $UI/Label_Info
@@ -122,6 +125,7 @@ func _on_start_button_pressed():
 		$UI/StartButton.queue_free()
 	
 	info_label.text = "Démarrage de la partie..."
+	AudioManager.play("ui_click")
 	
 	# Appel RPC au GameManager (vérifier que le script est bien chargé)
 	var dealer = get_node_or_null("/root/World/Dealer")
@@ -178,6 +182,9 @@ func notify_turn(my_turn: bool, to_call: int, can_check_flag: bool):
 	if my_turn:
 		action_ui.show()
 		info_label.text = "🎯 À VOUS DE JOUER !"
+		AudioManager.play("dealer_talk")
+		heartbeat_player.pitch_scale = 0.9
+		heartbeat_player.play()
 		
 		# Configurer l'input de mise
 		bet_input.editable = true
@@ -202,6 +209,7 @@ func notify_turn(my_turn: bool, to_call: int, can_check_flag: bool):
 	else:
 		action_ui.hide()
 		info_label.text = "⏳ En attente..."
+		heartbeat_player.stop()
 
 @rpc("any_peer", "call_local", "reliable")
 func update_stack(amount: int):
@@ -209,6 +217,8 @@ func update_stack(amount: int):
 	if is_local_player:
 		my_stack = amount
 		stack_label.text = "💰 Stack : " + str(my_stack) + "$"
+		
+		AudioManager.play("chips_stack")
 		
 		if has_node("UI/ActionButtons/HBoxContainer/BetInput"):
 			bet_input.max_value = my_stack
@@ -218,6 +228,7 @@ func update_pot(amount: int):
 	"""Met à jour l'affichage du pot"""
 	if is_local_player:
 		pot_label.text = "🎲 POT : " + str(amount) + "$"
+		AudioManager.play("ting_money")
 
 @rpc("any_peer", "call_local", "reliable")
 func show_announcement(message: String):
@@ -279,6 +290,9 @@ func receive_cards(cards: Array):
 		# Révéler uniquement pour le joueur local
 		if is_local_player and card.has_method("reveal"):
 			card.reveal()
+
+		await get_tree().create_timer(0.1).timeout
+		AudioManager.play("card_slide", true, 0.9)
 	
 	if is_local_player:
 		info_label.text = "🃏 Cartes : " + _card_to_string(cards[0]) + " " + _card_to_string(cards[1])
@@ -371,6 +385,8 @@ func _on_btn_bet_pressed():
 		print("→ Je RAISE à ", bet_amount, "$")
 		dealer.player_action.rpc_id(1, "BET", bet_amount)
 	
+	heartbeat_player.stop()
+	AudioManager.play("ui_click", false)
 	action_ui.hide()
 	info_label.text = "⏳ Action envoyée..."
 
@@ -385,6 +401,8 @@ func _on_btn_fold_pressed():
 	if dealer:
 		dealer.player_action.rpc_id(1, "FOLD", 0)
 	
+	heartbeat_player.stop()
+	AudioManager.play("ui_click", false)
 	action_ui.hide()
 	info_label.text = "💔 Vous vous êtes couché"
 
@@ -392,3 +410,8 @@ func _on_btn_fold_pressed():
 func hide_start_button():
 	if has_node("UI/StartButton"):
 		$UI/StartButton.queue_free()
+
+@rpc("any_peer", "call_local", "reliable")
+func play_remote_sound(sound_name: String, pitch: float = 1.0):
+	# On utilise ton AudioManager existant
+	AudioManager.play(sound_name, true, pitch)

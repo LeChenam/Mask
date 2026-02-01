@@ -72,4 +72,5 @@ text = "Rejoindre une partie via IP"
 script = SubResource("GDScript_ll2xe")
 
 [connection signal="pressed" from="CenterContainer/VBoxContainer/HostButton" to="." method="_on_host_button_pressed"]
+[connection signal="text_changed" from="CenterContainer/VBoxContainer/IPInput" to="." method="_on_ip_input_text_changed"]
 [connection signal="pressed" from="CenterContainer/VBoxContainer/JoinButton" to="." method="_on_join_button_pressed"]

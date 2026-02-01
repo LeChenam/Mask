@@ -19,9 +19,14 @@ run/size/viewport_height=480
 run/size/viewport_width=640
 run/size/borderless=true
 
+[audio]
+
+buses/default_bus_layout="uid://2wjyvslo6u6n"
+
 [autoload]
 
 NetworkManager="*res://scripts/network_manager.gd"
+AudioManager="*uid://w8ex1wk5mtkm"
 
 [display]
 
